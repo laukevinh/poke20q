@@ -16,7 +16,7 @@ class Point:
         return round(self.yes / (self.yes+self.no))
 
     def __repr__(self):
-        return "<Node({}, {})>".format(self.yes, self.no)
+        return "<Point({}, {})>".format(self.yes, self.no)
 
 class Node:
 
@@ -25,6 +25,21 @@ class Node:
 #        self.weight = weight
         self.text = text
 #        self.next = None
+
+    def __repr__(self):
+        return "<Node({}, {})>".format(self.type_, self.text[:8])
+
+class Entry:
+
+    def __init__(self, index, type_, resp):
+        self.index = index
+        self.type_ = type_
+        self.resp = resp
+
+    def __repr__(self):
+        return "<Entry({}, {}, {})".format(
+            self.n, self.type_, self.resp
+        )
 
 class Graph:
 
@@ -40,28 +55,28 @@ class Graph:
     def get_index(self, key):
         return self.keys.get(key)
 
+    def get_text(self, index):
+        return self.order[index].text
+
     def update(self, key, history):
         i = self.get_index(key)
         for entry in history:
-            print("______________", self.data, "_____________")
-            j = entry[ENTRY_TEXT_IND]
+            j = entry.index
+
             if i < j:
                 a, b = j, i
             else:
                 a, b = i, j
 
-            if entry[ENTRY_YN_IND] in ["y"]:
+            if entry.resp in ["y"]:
                 self.data[a][b].yes += 1
             else:
                 self.data[a][b].no += 1
 
-        print("______________", self.data, "_____________")
-
     def add(self, type_, text, history):
         
         self.size += 1
-        node = Node(type_, text)
-        self.order.append(node)
+        self.order.append(Node(type_, text))
         self.keys[text] = self.size - 1
 
         row = [Point(0,0) for i in range(self.size)]
@@ -93,6 +108,9 @@ class Game:
         self.history = []
         self.play = True
         
+    def track_resp(self, index, type_, resp):
+        self.history.append(Entry(index, type_, resp))
+
     def add_question(self):
         resp = input("Add a keyword to describe the pokemon: ")
         self.graph.add(Q, resp, self.history)
@@ -100,15 +118,16 @@ class Game:
     def ask_question(self):
         count = len(self.history)
         question = self.graph.next_question(count)
-        resp = input(question)
-        self.history.append((count, Q, resp))
+        resp = input("{}?".format(question.text))
+        self.track_resp(count, Q, resp)
 
     def add_answer(self):
         resp = input("Enter the name of the pokemon you are thinking of: ");
         self.graph.add(A, resp, self.history)
 
-    def update_graph(self):
+    def update_graph(self, key, history):
         print("Updating graph")
+        self.graph.update(key, history)
 
     def save(self):
         if self.saved_file is None:
@@ -119,10 +138,11 @@ class Game:
     def start(self):
         print("Starting game {}".format(self.saved_file))
         self.add_answer()
-        """
         self.add_question()
-        """
-        self.update_graph()
+        self.ask_question()
+        self.ask_question()
+        self.update_graph(self.graph.get_text(self.history[-1].index), self.history)
+        print(self.graph.data, self.graph.order)
         self.save()
 
 

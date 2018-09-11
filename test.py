@@ -1,6 +1,6 @@
 import unittest
 from main import Q, A
-from main import Point, Node, Graph, Game
+from main import Point, Node, Entry, Graph, Game
 
 class TestNewGame(unittest.TestCase):
     def setUp(self):
@@ -29,13 +29,15 @@ class TestNewGame(unittest.TestCase):
     def test_graph_update(self):
         self.game.graph.add(A, "venemoth", [])
         self.game.graph.add(Q, "wings", [])
-        self.game.graph.update("venemoth", [(1, Q, "y"), (0, A, "y")])
+        self.game.graph.update("venemoth", [Entry(1, Q, "y"), Entry(0, A, "y")])
         self.assertEqual(self.game.graph.data[1][0].yes, 1)
         self.assertEqual(self.game.graph.data[1][0].no, 0)
 
         self.game.graph.add(A, "rihorn", [])
-        self.game.graph.update("rihorn", [(1, Q, "n"), (2, A, "y")])
+        self.game.graph.update("rihorn", [Entry(1, Q, "n"), Entry(2, A, "y")])
 
+    def test_init(self):
+        
 
 
 """
