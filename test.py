@@ -1,5 +1,6 @@
 import unittest
-from main import Game
+from main import Q, A
+from main import Point, Node, Graph, Game
 
 class TestNewGame(unittest.TestCase):
     def setUp(self):
@@ -9,9 +10,35 @@ class TestNewGame(unittest.TestCase):
         self.assertEqual(self.game.saved_file, None)
 
     def test_graph_get(self):
-        self.graph.add("pikachu")
-        self.assertEqual(self.graph.get("pikachu").weight, 1)
+        self.game.graph.add(A, "venemoth", [])
+        self.assertEqual(self.game.graph.keys["venemoth"], 0)
+        self.assertEqual(self.game.graph.order[0].type_, A)
+        self.assertEqual(self.game.graph.order[0].text, "venemoth")
+        self.assertEqual(self.game.graph.data[0][0].yes, 0)
+        self.assertEqual(self.game.graph.data[0][0].no, 0)
 
+        self.game.graph.add(Q, "wings", [])
+        self.assertEqual(self.game.graph.keys["wings"], 1)
+        self.assertEqual(self.game.graph.order[1].type_, Q)
+        self.assertEqual(self.game.graph.order[1].text, "wings")
+        self.assertEqual(len(self.game.graph.data[0]), 1)
+        self.assertEqual(len(self.game.graph.data[1]), 2)
+        self.assertEqual(self.game.graph.data[1][0].yes, 0)
+        self.assertEqual(self.game.graph.data[1][1].no, 0)
+
+    def test_graph_update(self):
+        self.game.graph.add(A, "venemoth", [])
+        self.game.graph.add(Q, "wings", [])
+        self.game.graph.update("venemoth", [(1, Q, "y"), (0, A, "y")])
+        self.assertEqual(self.game.graph.data[1][0].yes, 1)
+        self.assertEqual(self.game.graph.data[1][0].no, 0)
+
+        self.game.graph.add(A, "rihorn", [])
+        self.game.graph.update("rihorn", [(1, Q, "n"), (2, A, "y")])
+
+
+
+"""
     def test_add_answer(self):
         self.game.graph["pikachu"] = 1
         self.assertEqual(self.game.graph["pikachu"], 1)
@@ -25,6 +52,7 @@ class TestNewGame(unittest.TestCase):
         self.assertEqual(self.game.graph["pikachu"], 1)
         self.game.graph["pikachu"] += 1
         self.assertEqual(self.game.graph["pikachu"], 2)
+        """
 
 class TestLoadGame(unittest.TestCase):
     def setUp(self):
