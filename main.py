@@ -20,7 +20,9 @@ class Point:
     def typical_resp(self):
         if (self.yes + self.no) == 0:
             return None
-        return round(self.yes / (self.yes+self.no))
+        if (self.yes / (self.yes+self.no)) >= 0.5:
+            return 1
+        return 0
 
     def __repr__(self):
         return "<Point({}, {})>".format(self.yes, self.no)
@@ -82,17 +84,18 @@ class Graph:
 
     def update_filtered_a(self, entry):
         updated_filtered_a = []
-        if entry.type_ == A:
-            for i in self.filtered_q:
-                if self.order[i].typical_resp in [entry.resp]:
-                    updated_filtered_a.append(i)
+        for i in self.filtered_a:
+            resp = 1 if entry.resp in ["y"] else 0
+            (a, b) = (entry.index, i) if i < entry.index else (i, entry.index)
+            if self.data[a][b].typical_resp() == resp:
+                updated_filtered_a.append(a)
         self.filtered_a = updated_filtered_a
         
-    def calc_ytoa(self, filtered_q=None):
+    def calc_ytoa(self, qa_subset):
         self.ytoa = [Point(0,0) for i in range(self.size)]
-        if filtered_q is None:
-            filtered_q = range(self.size)
-        for i in filtered_q:
+        if qa_subset is None or len(qa_subset) == 0:
+            qa_subset = range(self.size)
+        for i in qa_subset:
             for j in range(i):
                 (a, b) = (j, i) if i < j else (i, j)
                 self.ytoa[j].yes += self.data[a][b].yes
@@ -104,7 +107,6 @@ class Graph:
         self.init_filtered_q()
         self.init_filtered_a()
         self.calc_ytoa(self.filtered_a)
-        print(self.ytoa)
         if len(self.filtered_q) == 0:
             print("No questions")
             return None
@@ -114,9 +116,6 @@ class Graph:
 
         for i in self.filtered_q:
             value = self.ytoa[i].ytoa() - 0.5
-            print(q_index, q_dfrom50)
-            print(i, value)
-
             if abs(value) < q_dfrom50:
                 q_dfrom50 = abs(value)
                 q_index = i
@@ -129,22 +128,16 @@ class Graph:
         if len(history) == 0:
             return self.first_question()
 
-        self.update_filtered_q(history[-1])
-        for i in filtered_q:
-            if self.order[i].type_ == Q:
-                next_q_index = i
-                break
-        if next_q_index == len(filtered_q) - 1 and order[next_q_index].type_ == A:
-            return None
-        min_question = abs(self.ytoa[next_q_index].ytoa() - 0.5)
+        self.update_filtered_a(history[-1])
 
-        for i in filtered_q:
-            if self.order[i].type_ == Q:
-                value = self.ytoa[i].ytoa() - 0.5
-                min_question = min(abs(value), min_question)
-                next_q_index = i
+        temp = self.calc_ytoa(self.filtered_a)
+        if len(self.filtered_a) == 1:
+            return self.order[self.filtered_a[0]]
+        for i in range(len(temp)):
+            temp[i] = abs(temp[i] - 0.5)
+        q_index = int(min(temp))
 
-        return self.order[next_q_index]
+        return self.order[q_index]
 
     def get_index(self, key):
         return self.keys.get(key)
@@ -152,26 +145,29 @@ class Graph:
     def get_text(self, index):
         return self.order[index].text
 
-    def update(self, key, history):
-        i = self.get_index(key)
-        for entry in history:
-            j = entry.index
+    def update(self, history):
+        #last = history.pop()
+        last = history[-1]
+        if last.type_ == A:
+            i = last.index
+            for entry in history:
+                j = entry.index
 
-            if i < j:
-                a, b = j, i
-            else:
-                a, b = i, j
+                if i < j:
+                    a, b = j, i
+                else:
+                    a, b = i, j
 
-            if entry.resp in ["y"]:
-                self.data[a][b].yes += 1
-            else:
-                self.data[a][b].no += 1
+                if entry.resp in ["y"]:
+                    self.data[a][b].yes += 1
+                else:
+                    self.data[a][b].no += 1
+        del(history[:])
 
-    def add(self, type_, text, history):
+    def add(self, type_, text):
         self.size += 1
         self.order.append(Node(type_, text))
         self.keys[text] = self.size - 1
-
         row = [Point(0,0) for i in range(self.size)]
         self.data.append(row)
 
@@ -188,23 +184,23 @@ class Game:
 
     def add_question(self):
         resp = input("Add a keyword to describe the pokemon: ")
-        self.graph.add(Q, resp, self.history)
+        self.graph.add(Q, resp)
 
     def ask_question(self):
-        question = self.graph.next_question(self.history, self.filtered_q)
+        question = self.graph.next_question(self.history)
         if question is None:
             print("No more questions to ask")
         else:
             resp = input("{}?".format(question.text))
-            self.track_resp(count, Q, resp)
+            self.track_resp(self.graph.get_index(question.text), question.type_, resp)
 
     def add_answer(self):
         resp = input("Enter the name of the pokemon you are thinking of: ");
-        self.graph.add(A, resp, self.history)
+        self.graph.add(A, resp)
 
-    def update_graph(self, key, history):
+    def update_graph(self, history):
         print("Updating graph")
-        self.graph.update(key, history)
+        self.graph.update(history)
 
     def save(self):
         if self.saved_file is None:
@@ -218,7 +214,7 @@ class Game:
         self.add_question()
         self.ask_question()
         self.ask_question()
-        self.update_graph(self.graph.get_text(self.history[-1].index), self.history)
+        self.update_graph(self.history)
         print(self.graph.data, self.graph.order)
         self.save()
 
