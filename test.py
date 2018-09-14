@@ -1,5 +1,5 @@
 import unittest
-from main import Q, A
+from main import Q, A, YES, NO
 from main import Point, Node, Entry, Graph, Game
 
 class TestNewGame(unittest.TestCase):
@@ -35,9 +35,9 @@ class TestNewGame(unittest.TestCase):
     def test_graph_update(self):
         self.game.graph.add(A, "venemoth")
         self.game.graph.add(Q, "wings")
-        self.game.graph.update([Entry(1, Q, "y"), Entry(0, A, "y")])
+        self.game.graph.update([Entry(1, Q, YES), Entry(0, A, YES)])
         self.game.graph.add(A, "rihorn")
-        self.game.graph.update([Entry(1, Q, "n"), Entry(2, A, "y")])
+        self.game.graph.update([Entry(1, Q, NO), Entry(2, A, YES)])
         
         self.assertEqual(self.game.graph.data[0][0].yes, 1)
         self.assertEqual(self.game.graph.data[0][0].no, 0)
@@ -72,25 +72,25 @@ class TestNewGame(unittest.TestCase):
         self.game.graph.add(A, "dragonite")
 
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "n"), 
-            Entry(2, Q, "y"), 
-            Entry(3, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, NO), 
+            Entry(2, Q, YES), 
+            Entry(3, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "n"),
-            Entry(2, Q, "n"),
-            Entry(4, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, NO),
+            Entry(2, Q, NO),
+            Entry(4, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "y"),
-            Entry(1, Q, "y"),
-            Entry(2, Q, "y"),
-            Entry(5, A, "y")])
+            Entry(0, Q, YES),
+            Entry(1, Q, YES),
+            Entry(2, Q, YES),
+            Entry(5, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "y"),
-            Entry(2, Q, "y"),
-            Entry(6, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, YES),
+            Entry(2, Q, YES),
+            Entry(6, A, YES)])
 
         self.assertEqual(
             self.game.graph.calc_ytoa([]), 
@@ -110,25 +110,25 @@ class TestNewGame(unittest.TestCase):
         self.game.graph.add(A, "dragonite")
 
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "n"), 
-            Entry(2, Q, "y"), 
-            Entry(3, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, NO), 
+            Entry(2, Q, YES), 
+            Entry(3, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "n"),
-            Entry(2, Q, "n"),
-            Entry(4, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, NO),
+            Entry(2, Q, NO),
+            Entry(4, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "y"),
-            Entry(1, Q, "y"),
-            Entry(2, Q, "y"),
-            Entry(5, A, "y")])
+            Entry(0, Q, YES),
+            Entry(1, Q, YES),
+            Entry(2, Q, YES),
+            Entry(5, A, YES)])
         self.game.graph.update([
-            Entry(0, Q, "n"), 
-            Entry(1, Q, "y"),
-            Entry(2, Q, "y"),
-            Entry(6, A, "y")])
+            Entry(0, Q, NO), 
+            Entry(1, Q, YES),
+            Entry(2, Q, YES),
+            Entry(6, A, YES)])
 
         self.game.graph.init_filtered_q()
         self.game.graph.init_filtered_a()
@@ -137,15 +137,13 @@ class TestNewGame(unittest.TestCase):
 
         node = self.game.graph.next_question(self.game.history)
         self.assertEqual(node.text, "bipedal")
-        #print(self.game.graph.filtered_a)
 
-        self.game.history.append(Entry(1, Q, "y"))
+        self.game.history.append(Entry(1, Q, YES))
         node = self.game.graph.next_question(self.game.history)
         self.assertEqual(node.text, "starter")
-        #print(self.game.graph.filtered_a)
         self.assertEqual(self.game.graph.filtered_a, [5, 6])
 
-        self.game.history.append(Entry(0, Q, "y"))
+        self.game.history.append(Entry(0, Q, YES))
         
         self.assertEqual(
             self.game.graph.next_question(self.game.history).text,

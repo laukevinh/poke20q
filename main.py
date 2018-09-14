@@ -2,10 +2,31 @@ from datetime import datetime
 
 Q = 0
 A = 1
+NO = 0
+YES = 1
 ENTRY_TEXT_IND = 0
 ENTRY_TYPE_IND = 1
 ENTRY_YN_IND = 2
-    
+
+def convert_yes_no(resp):
+    resp = str.lower(resp)
+    if resp in ["y", "yes"]:
+        return YES
+    elif resp in ["n", "no"]:
+        return NO
+    else:
+        raise ValueError
+
+def get_ans(prompt):
+    responded = False
+    while (not responded):
+        try:
+            resp = convert_yes_no(input("{}? ".format(prompt)))
+        except ValueError:
+            print("Please enter yes or no")
+        else:
+            return resp
+
 class Point:
 
     def __init__(self, yes, no):
@@ -80,9 +101,8 @@ class Graph:
     def update_filtered_a(self, entry):
         updated_filtered_a = []
         for i in self.filtered_a:
-            resp = 1 if entry.resp in ["y"] else 0
             (a, b) = (entry.index, i) if i < entry.index else (i, entry.index)
-            if self.data[a][b].typical_resp() == resp:
+            if self.data[a][b].typical_resp() == entry.resp:
                 updated_filtered_a.append(a)
         self.filtered_a = updated_filtered_a
         
@@ -160,7 +180,7 @@ class Graph:
                 else:
                     a, b = i, j
 
-                if entry.resp in ["y"]:
+                if entry.resp == YES:
                     self.data[a][b].yes += 1
                 else:
                     self.data[a][b].no += 1
@@ -197,7 +217,7 @@ class Game:
         if question is None:
             print("No more questions to ask")
         else:
-            resp = input("{}?".format(question.text))
+            resp = get_ans(question.text)
             self.track_resp(self.graph.get_index(question.text), question.type_, resp)
 
     def update_graph(self, history):
@@ -211,12 +231,11 @@ class Game:
 
     def start(self):
         print("Starting game {}".format(self.saved_file))
-        add_more = False
+        add_more = NO
         while (self.graph.size < 2 or add_more):
             self.add_answer()
             self.add_question()
-            resp = input("Add another question and answer? (y/n) ")
-            add_more = resp in ["y"]
+            add_more = get_ans("Add another question and answer? (y/n) ")
         self.ask_question()
         while (len(self.graph.filtered_a) > 0):
             self.ask_question()
