@@ -58,29 +58,24 @@ class Graph:
         self.data = []
         self.size = 0
         self.ytoa = []
-        self.filtered_q = None
-        self.filtered_a = None
+        self.filtered_q = []
+        self.filtered_a = []
+        self.tie_breaker = 0
         
     def init_filtered_q(self):
-        self.filtered_q = []
+        del(self.filtered_q[:])
         for i in range(self.size):
             if self.order[i].type_ == Q:
                 self.filtered_q.append(i)
 
     def init_filtered_a(self):
-        self.filtered_a = []
+        del(self.filtered_a[:])
         for i in range(self.size):
             if self.order[i].type_ == A:
                 self.filtered_a.append(i)
 
     def update_filtered_q(self, entry):
-        updated_filtered_q = []
-        if entry.type_ == Q:
-            for i in self.filtered_a:
-                resp = 1 if entry.resp in ["y"] else 0
-                if self.data[i][entry.index].typical_resp == resp:
-                    updated_filtered_q.append(i)
-        self.filtered_q = updated_filtered_q
+        pass
 
     def update_filtered_a(self, entry):
         updated_filtered_a = []
@@ -105,21 +100,28 @@ class Graph:
 
     def first_question(self):
         self.init_filtered_q()
-        self.init_filtered_a()
-        self.calc_ytoa(self.filtered_a)
         if len(self.filtered_q) == 0:
             print("No questions")
             return None
+
+        self.init_filtered_a()
+        temp = self.calc_ytoa(self.filtered_a)
         
         q_index = self.filtered_q[0]
-        q_dfrom50 = abs(self.ytoa[q_index].ytoa() - 0.5)
+        q_dfrom50 = abs(temp[q_index] - 0.5)
 
+        min_list = [q_index]
         for i in self.filtered_q:
-            value = self.ytoa[i].ytoa() - 0.5
-            if abs(value) < q_dfrom50:
-                q_dfrom50 = abs(value)
+            if abs(temp[i] - 0.5) < q_dfrom50:
+                q_dfrom50 = abs(temp[i] - 0.5)
                 q_index = i
+                del(min_list[:])
+                min_list.append(q_index)
+            elif abs(temp[i] - 0.5) == q_dfrom50:
+                min_list.append(i)
 
+        q_index = min_list[self.tie_breaker]
+        self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
         return self.order[q_index]
 
         
@@ -186,6 +188,10 @@ class Game:
         resp = input("Add a keyword to describe the pokemon: ")
         self.graph.add(Q, resp)
 
+    def add_answer(self):
+        resp = input("Enter the name of the pokemon you are thinking of: ");
+        self.graph.add(A, resp)
+
     def ask_question(self):
         question = self.graph.next_question(self.history)
         if question is None:
@@ -194,12 +200,7 @@ class Game:
             resp = input("{}?".format(question.text))
             self.track_resp(self.graph.get_index(question.text), question.type_, resp)
 
-    def add_answer(self):
-        resp = input("Enter the name of the pokemon you are thinking of: ");
-        self.graph.add(A, resp)
-
     def update_graph(self, history):
-        print("Updating graph")
         self.graph.update(history)
 
     def save(self):
@@ -210,14 +211,18 @@ class Game:
 
     def start(self):
         print("Starting game {}".format(self.saved_file))
-        self.add_answer()
-        self.add_question()
+        add_more = False
+        while (self.graph.size < 2 or add_more):
+            self.add_answer()
+            self.add_question()
+            resp = input("Add another question and answer? (y/n) ")
+            add_more = resp in ["y"]
         self.ask_question()
-        self.ask_question()
+        while (len(self.graph.filtered_a) > 0):
+            self.ask_question()
         self.update_graph(self.history)
         print(self.graph.data, self.graph.order)
         self.save()
-
 
     def stop(self):
         self.play = False
