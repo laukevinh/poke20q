@@ -62,43 +62,152 @@ class TestNewGame(unittest.TestCase):
     "dragonite"  [ [0,1], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0] ]
                 ]
     """
-    def test_calc_ytoa(self):
-        self.game.graph.add(Q, "starter")
+    def test_graph_update_2(self):
         self.game.graph.add(Q, "bipedal")
         self.game.graph.add(Q, "wings")
         self.game.graph.add(A, "venemoth")
         self.game.graph.add(A, "rihorn")
         self.game.graph.add(A, "charizard")
         self.game.graph.add(A, "dragonite")
+        self.game.graph.add(Q, "starter")
 
         self.game.graph.update([
-            Entry(0, Q, NO), 
-            Entry(1, Q, NO), 
-            Entry(2, Q, YES), 
-            Entry(3, A, YES)])
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, NO), 
+            Entry(self.game.graph.get_index("wings"), Q, YES), 
+            Entry(self.game.graph.get_index("venemoth"), A, YES)])
+        
+        i = self.game.graph.get_index("starter")
+        j = self.game.graph.get_index("venemoth")
+        self.assertEqual(self.game.graph.get_point(i, j).yes, 0)
+        self.assertEqual(self.game.graph.get_point(i, j).no, 1)
+        
+        i = self.game.graph.get_index("wings")
+        j = self.game.graph.get_index("venemoth")
+        self.assertEqual(self.game.graph.get_point(i, j).yes, 1)
+        self.assertEqual(self.game.graph.get_point(i, j).no, 0)
+
+    """
+    "starter"   [[ [0,0] ],
+    "bipedal"    [ [0,0], [0,0] ],
+    "wings"      [ [0,0], [0,0], [0,0] ]
+    "venemoth"   [ [0,1], [0,1], [1,0], [0,0] ]
+    "rihorn"     [ [0,1], [0,1], [0,1], [0,0], [0,0] ]
+    "charizard"  [ [1,0], [1,0], [1,0], [0,0], [0,0], [0,0] ]
+    "dragonite"  [ [0,1], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0] ]
+                ]
+    """
+    def test_calc_ytoa(self):
+        self.game.graph.add(Q, "bipedal")
+        self.game.graph.add(Q, "wings")
+        self.game.graph.add(A, "venemoth")
+        self.game.graph.add(A, "rihorn")
+        self.game.graph.add(A, "charizard")
+        self.game.graph.add(A, "dragonite")
+        self.game.graph.add(Q, "starter")
+
         self.game.graph.update([
-            Entry(0, Q, NO), 
-            Entry(1, Q, NO),
-            Entry(2, Q, NO),
-            Entry(4, A, YES)])
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, NO), 
+            Entry(self.game.graph.get_index("wings"), Q, YES), 
+            Entry(self.game.graph.get_index("venemoth"), A, YES)])
+        self.game.graph.init_filtered_q()
+        self.game.graph.init_filtered_a()
+        self.assertEqual(
+            self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
+            [0.0, 1.0, None, None, None, None, 0.0])
         self.game.graph.update([
-            Entry(0, Q, YES),
-            Entry(1, Q, YES),
-            Entry(2, Q, YES),
-            Entry(5, A, YES)])
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, NO),
+            Entry(self.game.graph.get_index("wings"), Q, NO),
+            Entry(self.game.graph.get_index("rihorn"), A, YES)])
+        self.assertEqual(
+            self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
+            [0.0, 0.5, None, None, None, None, 0.0])
         self.game.graph.update([
-            Entry(0, Q, NO), 
-            Entry(1, Q, YES),
-            Entry(2, Q, YES),
-            Entry(6, A, YES)])
+            Entry(self.game.graph.get_index("starter"), Q, YES),
+            Entry(self.game.graph.get_index("bipedal"), Q, YES),
+            Entry(self.game.graph.get_index("wings"), Q, YES),
+            Entry(self.game.graph.get_index("charizard"), A, YES)])
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, YES),
+            Entry(self.game.graph.get_index("wings"), Q, YES),
+            Entry(self.game.graph.get_index("dragonite"), A, YES)])
+        self.assertEqual(
+            self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
+            [0.5, 0.75, None, None, None, None, 0.25])
 
         self.assertEqual(
-            self.game.graph.calc_ytoa([]), 
-            [0.25, 0.5, 0.75, 0.0, 0.0, 0.0, 0.0])
+            self.game.graph.calc_ytoa([4, 5], self.game.graph.filtered_q), 
+            [1.0, 1.0, None, None, None, None, 0.5])
 
+    """
+    "starter"   [[ [0,0] ],
+    "bipedal"    [ [0,0], [0,0] ],
+    "wings"      [ [0,0], [0,0], [0,0] ]
+    "venemoth"   [ [0,1], [0,1], [1,0], [0,0] ]
+    "rihorn"     [ [0,1], [0,1], [0,1], [0,0], [0,0] ]
+    "charizard"  [ [1,0], [1,0], [1,0], [0,0], [0,0], [0,0] ]
+    "dragonite"  [ [0,1], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0] ]
+                ]
+    """
+    def test_filter_update(self):
+        self.game.graph.add(Q, "bipedal")
+        self.game.graph.add(Q, "wings")
+        self.game.graph.add(A, "venemoth")
+        self.game.graph.add(A, "rihorn")
+        self.game.graph.add(A, "charizard")
+        self.game.graph.add(A, "dragonite")
+        self.game.graph.add(Q, "starter")
+
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, NO), 
+            Entry(self.game.graph.get_index("wings"), Q, YES), 
+            Entry(self.game.graph.get_index("venemoth"), A, YES)])
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, NO),
+            Entry(self.game.graph.get_index("wings"), Q, NO),
+            Entry(self.game.graph.get_index("rihorn"), A, YES)])
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("starter"), Q, YES),
+            Entry(self.game.graph.get_index("bipedal"), Q, YES),
+            Entry(self.game.graph.get_index("wings"), Q, YES),
+            Entry(self.game.graph.get_index("charizard"), A, YES)])
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("starter"), Q, NO), 
+            Entry(self.game.graph.get_index("bipedal"), Q, YES),
+            Entry(self.game.graph.get_index("wings"), Q, YES),
+            Entry(self.game.graph.get_index("dragonite"), A, YES)])
+
+        self.game.graph.init_filtered_q()
+        self.game.graph.init_filtered_a()
         self.assertEqual(
-            self.game.graph.calc_ytoa([5, 6]), 
-            [0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0])
+            self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
+            [0.5, 0.75, None, None, None, None, 0.25])
+
+        self.assertEqual(self.game.graph.next_question(self.game.history), "bipedal")
+        self.game.track_resp(self.game.graph.get_index("bipedal"), Q, YES)
+
+        self.game.graph.update_filtered_a(self.game.history[-1])
+        self.assertEqual(self.game.graph.filtered_a, [4, 5])
+        self.assertEqual(self.game.graph.filtered_q, [1, 6])
+        
+        self.assertEqual(
+            self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
+            [None, 1.0, None, None, None, None, 0.5])
+        """
+
+        self.assertEqual(self.game.graph.next_question(self.game.history), "starter")
+        self.assertEqual(self.game.graph.filtered_a, [4, 5])
+        self.assertEqual(self.game.graph.filtered_q, [1, 6])
+        self.game.track_resp(self.game.graph.get_index("starter"), Q, YES)
+
+        #self.game.graph.update_filtered_a(self.game.history[-1])
+        self.assertEqual(self.game.graph.filtered_a, [4])
+        """
 
     def test_next_question(self):
         self.game.graph.add(Q, "starter")
@@ -135,6 +244,7 @@ class TestNewGame(unittest.TestCase):
         self.assertEqual(self.game.graph.filtered_q, [0, 1, 2])
         self.assertEqual(self.game.graph.filtered_a, [3, 4, 5, 6])
 
+        """
         node = self.game.graph.next_question(self.game.history)
         self.assertEqual(node.text, "bipedal")
 
@@ -148,6 +258,7 @@ class TestNewGame(unittest.TestCase):
         self.assertEqual(
             self.game.graph.next_question(self.game.history).text,
             "charizard")
+        """
 
 
 """
