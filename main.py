@@ -55,9 +55,7 @@ class Node:
 
     def __init__(self, type_=Q, text="", weight=0):
         self.type_ = type_
-#        self.weight = weight
         self.text = text
-#        self.next = None
 
     def __repr__(self):
         return "<Node({}, {})>".format(self.type_, self.text[:8])
@@ -70,9 +68,7 @@ class Entry:
         self.resp = resp
 
     def __repr__(self):
-        return "<Entry({}, {}, {})".format(
-            self.n, self.type_, self.resp
-        )
+        return "<Entry({}, {}, {})>".format(self.index, self.type_, self.resp)
 
 class Graph:
 
@@ -110,13 +106,6 @@ class Graph:
             if point.typical_resp() == entry.resp:
                 temp.append(a_index)
         self.filtered_a = temp
-        """
-        for i in self.filtered_a:
-            (a, b) = (entry.index, i) if i < entry.index else (i, entry.index)
-            if self.data[a][b].typical_resp() == entry.resp:
-                updated_filtered_a.append(a)
-        self.filtered_a = updated_filtered_a
-        """
         
     # calculates the yes to all answers ratio based on the remaining
     # answers. for example, given a list of filtered_answers [0, 1, 2]
@@ -126,19 +115,9 @@ class Graph:
 
     def calc_ytoa(self, filtered_a, filtered_q):
         subtotal_ytoa = [Point(0,0) for i in range(self.size)]
-        """
-        if filtered_a is None or len(filtered_a) == 0:
-            filtered_a = range(self.size)
-        """
         for a_index in filtered_a:
             for q_index in filtered_q:
-                """
-                (a, b) = (j, i) if i < j else (i, j)
-                subtotal_ytoa[j].yes += self.data[a][b].yes
-                subtotal_ytoa[j].no += self.data[a][b].no
-                """
                 point = self.get_point(q_index, a_index)
-                #index, oth = get_correct_i_j(q_index, a_index)
                 index = q_index
                 subtotal_ytoa[index].yes += point.yes
                 subtotal_ytoa[index].no += point.no
@@ -175,16 +154,15 @@ class Graph:
                 elif temp[i] == q_dfrom50:
                     min_list.append(i)
 
-        #self.tie_breaker = (self.tie_breaker) % len(min_list)
         self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
         q_index = min_list[self.tie_breaker]
-       # self.update_filtered_q(q_index)
         return self.get_node(q_index)
         
 
     def check_all_ans_same(self):
         temp = []
         if len(self.filtered_a) == 0:
+            print("empty filtered ans")
             return True
         for i in self.filtered_a:
             temp.append(self.calc_ytoa([i], self.filtered_q))
@@ -216,8 +194,6 @@ class Graph:
             else:
                 print("You got us! No more questions from next question")
                 return -1
-
-
 
         temp = self.calc_ytoa(self.filtered_a, self.filtered_q)
         q_index = self.filtered_q[0]
@@ -253,7 +229,6 @@ class Graph:
         return self.data[i][j]
 
     def update(self, history):
-        #last = history.pop()
         last = history[-1]
         if last.type_ == A:
             for entry in history:
@@ -265,7 +240,6 @@ class Graph:
         del(history[:])
 
     def add(self, type_, text):
-        # check if already exists
         if self.get_index(text) is None:
             self.size += 1
             self.order.append(Node(type_, text))
@@ -295,6 +269,8 @@ class Game:
         self.graph.add(A, resp)
 
     def update_graph_on_lose(self):
+        if self.history[-1].type_ == A:
+            print("Popped", self.history.pop())
         answer = input("Enter the name of the pokemon you were thinking of: ");
         question = input("Add a keyword to describe the pokemon. If none, type 'n':")
         if question in ["n"]:
