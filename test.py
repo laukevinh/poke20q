@@ -152,6 +152,39 @@ class TestNewGame(unittest.TestCase):
     "dragonite"  [ [0,1], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0] ]
                 ]
     """
+    def test_all_ans_same(self):
+        self.game.graph.add(Q, "bipedal")
+        self.game.graph.add(A, "dragonite")
+        self.game.graph.add(Q, "wings")
+        self.game.graph.add(A, "charizard")
+        self.game.graph.add(Q, "horns")
+        self.game.graph.add(A, "rihorn")
+
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("bipedal"), Q, YES), 
+            Entry(self.game.graph.get_index("wings"), Q, YES), 
+            Entry(self.game.graph.get_index("horns"), Q, YES), 
+            Entry(self.game.graph.get_index("charizard"), A, YES)])
+        self.game.graph.update([
+            Entry(self.game.graph.get_index("bipedal"), Q, YES), 
+            Entry(self.game.graph.get_index("wings"), Q, YES), 
+            Entry(self.game.graph.get_index("horns"), Q, YES), 
+            Entry(self.game.graph.get_index("dragonite"), A, YES)])
+        self.game.graph.init_filtered_q()
+        self.game.graph.init_filtered_a()
+        self.assertEqual(self.game.graph.check_all_ans_same(), True)
+
+
+    """
+    "starter"   [[ [0,0] ],
+    "bipedal"    [ [0,0], [0,0] ],
+    "wings"      [ [0,0], [0,0], [0,0] ]
+    "venemoth"   [ [0,1], [0,1], [1,0], [0,0] ]
+    "rihorn"     [ [0,1], [0,1], [0,1], [0,0], [0,0] ]
+    "charizard"  [ [1,0], [1,0], [1,0], [0,0], [0,0], [0,0] ]
+    "dragonite"  [ [0,1], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0] ]
+                ]
+    """
     def test_filter_update(self):
         self.game.graph.add(Q, "bipedal")
         self.game.graph.add(Q, "wings")
@@ -160,12 +193,15 @@ class TestNewGame(unittest.TestCase):
         self.game.graph.add(A, "charizard")
         self.game.graph.add(A, "dragonite")
         self.game.graph.add(Q, "starter")
+        self.assertEqual(self.game.graph.check_all_ans_same(), True)
 
         self.game.graph.update([
             Entry(self.game.graph.get_index("starter"), Q, NO), 
             Entry(self.game.graph.get_index("bipedal"), Q, NO), 
             Entry(self.game.graph.get_index("wings"), Q, YES), 
             Entry(self.game.graph.get_index("venemoth"), A, YES)])
+
+
         self.game.graph.update([
             Entry(self.game.graph.get_index("starter"), Q, NO), 
             Entry(self.game.graph.get_index("bipedal"), Q, NO),
@@ -184,14 +220,17 @@ class TestNewGame(unittest.TestCase):
 
         self.game.graph.init_filtered_q()
         self.game.graph.init_filtered_a()
+        self.assertEqual(self.game.graph.check_all_ans_same(), False)
+        
         self.assertEqual(
             self.game.graph.calc_ytoa(self.game.graph.filtered_a, self.game.graph.filtered_q), 
             [0.5, 0.75, None, None, None, None, 0.25])
 
-        self.assertEqual(self.game.graph.next_question(self.game.history), "bipedal")
+        self.assertEqual(self.game.graph.next_question(self.game.history).text, "bipedal")
         self.game.track_resp(self.game.graph.get_index("bipedal"), Q, YES)
 
         self.game.graph.update_filtered_a(self.game.history[-1])
+        self.game.graph.update_filtered_q(self.game.history[-1].index)
         self.assertEqual(self.game.graph.filtered_a, [4, 5])
         self.assertEqual(self.game.graph.filtered_q, [1, 6])
         

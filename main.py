@@ -151,7 +151,6 @@ class Graph:
             except TypeError:
                 array[i] = None
 
-
     def first_question(self):
         self.init_filtered_q()
         if len(self.filtered_q) == 0:
@@ -167,15 +166,6 @@ class Graph:
 
         min_list = [q_index]
         for i in self.filtered_q:
-            """
-            if abs(temp[i] - 0.5) < q_dfrom50:
-                q_dfrom50 = abs(temp[i] - 0.5)
-                q_index = i
-                del(min_list[:])
-                min_list.append(q_index)
-            elif abs(temp[i] - 0.5) == q_dfrom50:
-                min_list.append(i)
-            """
             if temp[i] is not None:
                 if temp[i] < q_dfrom50:
                     q_dfrom50 = temp[i]
@@ -185,31 +175,51 @@ class Graph:
                 elif temp[i] == q_dfrom50:
                     min_list.append(i)
 
-        q_index = min_list[self.tie_breaker]
+        #self.tie_breaker = (self.tie_breaker) % len(min_list)
         self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
-        self.update_filtered_q(q_index)
-# delete q_index and update filtered_q
-        return self.get_text(q_index)
-
+        q_index = min_list[self.tie_breaker]
+       # self.update_filtered_q(q_index)
+        return self.get_node(q_index)
         
+
+    def check_all_ans_same(self):
+        temp = []
+        if len(self.filtered_a) == 0:
+            return True
+        for i in self.filtered_a:
+            temp.append(self.calc_ytoa([i], self.filtered_q))
+        for i in range(len(self.filtered_a)):
+            for j in range(i+1, len(self.filtered_a)):
+                if temp[i] == temp[j]:
+                    print(self.get_text(self.filtered_a[i]), temp[i])
+                    print(self.get_text(self.filtered_a[j]), temp[j])
+                    return True
+        return False
+
 
     def next_question(self, history):
         if len(history) == 0:
             return self.first_question()
 
         self.update_filtered_a(history[-1])
-        all_ans_same = False
-        if len(self.filtered_a) > 1 or all_ans_same:
-            return self.get_text(self.filtered_a[0])
+        self.update_filtered_q(history[-1].index)
+
+        if len(self.filtered_a) == 1:
+            return self.get_node(self.filtered_a[0])
+
+        all_ans_same = self.check_all_ans_same()
+        if all_ans_same is True:
+            if len(self.filtered_q) > 0:
+                self.tie_breaker = (self.tie_breaker + 1) % len(self.filtered_q)
+                q_index = self.filtered_q[self.tie_breaker]
+                return self.get_node(q_index)
+            else:
+                print("You got us! No more questions from next question")
+                return -1
+
+
 
         temp = self.calc_ytoa(self.filtered_a, self.filtered_q)
-        """
-        for i in range(len(temp)):
-            temp[i] = abs(temp[i] - 0.5)
-        q_index = int(min(temp))
-
-        return self.order[q_index]
-        """
         q_index = self.filtered_q[0]
         q_dfrom50 = 0.5
         self.calc_dfrom50(temp)
@@ -225,10 +235,9 @@ class Graph:
                 elif temp[i] == q_dfrom50:
                     min_list.append(i)
 
-        q_index = min_list[self.tie_breaker]
         self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
-        #return self.order[q_index]
-        return self.get_text(q_index)
+        q_index = min_list[self.tie_breaker]
+        return self.get_node(q_index)
 
     def get_index(self, key):
         return self.keys.get(key)
@@ -236,8 +245,10 @@ class Graph:
     def get_text(self, index):
         return self.order[index].text
 
+    def get_node(self, index):
+        return self.order[index]
+
     def get_point(self, ques_index, ans_index):
-        #(i, j) = get_correct_i_j(ans_index, ques_index)
         (i, j) = get_correct_i_j(ques_index, ans_index)
         return self.data[i][j]
 
@@ -254,11 +265,15 @@ class Graph:
         del(history[:])
 
     def add(self, type_, text):
-        self.size += 1
-        self.order.append(Node(type_, text))
-        self.keys[text] = self.size - 1
-        row = [Point(0,0) for i in range(self.size)]
-        self.data.append(row)
+        # check if already exists
+        if self.get_index(text) is None:
+            self.size += 1
+            self.order.append(Node(type_, text))
+            self.keys[text] = self.size - 1
+            row = [Point(0,0) for i in range(self.size)]
+            self.data.append(row)
+        else:
+            print("{} already exists in the db".format(text))
 
 class Game:
 
@@ -279,10 +294,23 @@ class Game:
         resp = input("Enter the name of the pokemon you are thinking of: ");
         self.graph.add(A, resp)
 
+    def update_graph_on_lose(self):
+        answer = input("Enter the name of the pokemon you were thinking of: ");
+        question = input("Add a keyword to describe the pokemon. If none, type 'n':")
+        if question in ["n"]:
+            question = None
+        self.graph.add(A, answer)
+        if question is not None:
+            self.graph.add(Q, question)
+            self.track_resp(self.graph.get_index(question), Q, YES)
+        self.track_resp(self.graph.get_index(answer), A, YES)
+
     def ask_question(self):
         question = self.graph.next_question(self.history)
         if question is None:
             print("No more questions to ask")
+        elif question == -1:
+            self.update_graph_on_lose()
         else:
             resp = get_ans(question.text)
             self.track_resp(self.graph.get_index(question.text), question.type_, resp)
@@ -321,7 +349,7 @@ class Game:
             return True
         elif self.history[-1].resp == NO:
             print("Darn...we lost!")
-            self.initialize_graph()
+            self.update_graph_on_lose()
             return True
         else:
             print("Error????", self.history)
