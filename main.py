@@ -106,23 +106,24 @@ class Graph:
         (i, j) = (j, i) if j > i else (i, j)
         return self.data[i][j]
 
+    def reset_filter(self, field):
+        del(field[:])
+        resp_type = Q if field == self.filtered_q else A
+        for index in range(self.size):
+            if self.get_node(index).type_ == resp_type:
+                field.append(index)
+
     def init_filtered_q(self):
-        del(self.filtered_q[:])
-        for i in range(self.size):
-            if self.order[i].type_ == Q:
-                self.filtered_q.append(i)
+        self.reset_filter(self.filtered_q)
 
     def init_filtered_a(self):
-        del(self.filtered_a[:])
-        for i in range(self.size):
-            if self.order[i].type_ == A:
-                self.filtered_a.append(i)
+        self.reset_filter(self.filtered_a)
 
-    def update_filtered_q(self, index_to_del):
+    def update_filtered_q(self, entry):
         for i in range(len(self.filtered_q)):
-            if self.filtered_q[i] == index_to_del:
+            if self.filtered_q[i] == entry.index:
                 del(self.filtered_q[i])
-                break;
+                break
 
     def update_filtered_a(self, entry):
         temp = []
@@ -136,7 +137,7 @@ class Graph:
         
     # calculates the yes to all answers ratio based on the remaining
     # answers. for example, given a list of filtered_answers [0, 1, 2]
-    # and list of questions are [3, 4, 5], return a list
+    # and list of questions [3, 4, 5], return a list
     # [None, None, None, %, %, %] where the % indicates that question's
     # ratio of yes to all answers
 
@@ -178,7 +179,7 @@ class Graph:
             self.init_filtered_a()
         else:
             self.update_filtered_a(history[-1])
-            self.update_filtered_q(history[-1].index)
+            self.update_filtered_q(history[-1])
 
             if len(self.filtered_a) == 1:
                 return self.get_node(self.filtered_a[0])

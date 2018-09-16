@@ -229,7 +229,7 @@ class TestNewGame(unittest.TestCase):
         self.game.track_resp(self.game.graph.get_index("bipedal"), Q, YES)
 
         self.game.graph.update_filtered_a(self.game.history[-1])
-        self.game.graph.update_filtered_q(self.game.history[-1].index)
+        self.game.graph.update_filtered_q(self.game.history[-1])
         self.assertEqual(self.game.graph.filtered_a, [4, 5])
         self.assertEqual(self.game.graph.filtered_q, [1, 6])
         
