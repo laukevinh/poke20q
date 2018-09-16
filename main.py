@@ -5,6 +5,7 @@ A = 1
 NO = 0
 YES = 1
 MAX_TEXT_LEN = 10 # max text length in repr
+TYPICAL_RESP_THRESHOLD = 0.5
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -25,38 +26,49 @@ def get_ans(prompt):
         else:
             return resp
 
-def get_correct_i_j(i, j):
-    return (j, i) if j > i else (i, j)
-
 class Point:
 
     def __init__(self, yes, no):
         self.yes = yes
         self.no = no
+        self.total = yes + no
+
+    def inc(self, field, amt):
+        if (field == YES):
+            self.yes += amt
+            self.total += amt
+        elif (field == NO):
+            self.no += amt
+            self.total += amt
+        else:
+            raise IndexError
 
     def ytoa(self):
-        if (self.yes + self.no) == 0:
+        if (self.total == 0):
             return None
-        return self.yes / (self.yes+self.no)
+        return self.yes / self.total
 
     def typical_resp(self):
-        if (self.yes + self.no) == 0:
+        ytoa = self.ytoa()
+        if (ytoa is None):
             return None
-        if (self.yes / (self.yes+self.no)) >= 0.5:
+        elif (ytoa >= TYPICAL_RESP_THRESHOLD):
             return YES
         return NO
 
     def __repr__(self):
-        return "<Point({}, {})>".format(self.yes, self.no)
+        return "<Point({}:{}, {:.0%})>".format(
+            self.yes, self.no, self.ytoa)
 
 class Node:
 
-    def __init__(self, type_=Q, text="", weight=0):
+    def __init__(self, type_, text):
         self.type_ = type_
         self.text = text
 
     def __repr__(self):
-        return "<Node({}, {})>".format(self.type_, self.text[:MAX_TEXT_LEN])
+        return "<Node({}, {})>".format(
+            self.type_, self.text[:MAX_TEXT_LEN])
 
 class Entry:
 
@@ -66,12 +78,13 @@ class Entry:
         self.resp = resp
 
     def __repr__(self):
-        return "<Entry({}, {}, {})>".format(self.index, self.type_, self.resp)
+        return "<Entry({}, {}, {})>".format(
+            self.index, self.type_, self.resp[:MAX_TEXT_LEN])
 
 class Graph:
 
     def __init__(self):
-        self.keys = dict()
+        self.index = dict()
         self.order = []
         self.data = []
         self.size = 0
@@ -79,6 +92,20 @@ class Graph:
         self.filtered_a = []
         self.tie_breaker = 0
         
+    def get_index(self, text_key):
+        return self.index.get(text_key)
+
+    def get_node(self, index):
+        return self.order[index]
+
+    def get_text(self, index):
+        return self.get_node(index).text
+
+    def get_point(self, ques_index, ans_index):
+        (i, j) = ques_index, ans_index
+        (i, j) = (j, i) if j > i else (i, j)
+        return self.data[i][j]
+
     def init_filtered_q(self):
         del(self.filtered_q[:])
         for i in range(self.size):
@@ -119,14 +146,14 @@ class Graph:
             for q_index in filtered_q:
                 point = self.get_point(q_index, a_index)
                 index = q_index
-                subtotal_ytoa[index].yes += point.yes
-                subtotal_ytoa[index].no += point.no
+                subtotal_ytoa[index].inc(YES, point.yes)
+                subtotal_ytoa[index].inc(NO, point.no)
         return [p.ytoa() for p in subtotal_ytoa]
 
     def calc_dfrom50(self, array):
         for i in range(len(array)):
             try:
-                array[i] = abs(array[i] - 0.5)
+                array[i] = abs(array[i] - TYPICAL_RESP_THRESHOLD)
             except TypeError:
                 array[i] = None
 
@@ -190,35 +217,19 @@ class Graph:
         q_index = min_list[self.tie_breaker]
         return self.get_node(q_index)
 
-    def get_index(self, key):
-        return self.keys.get(key)
-
-    def get_text(self, index):
-        return self.order[index].text
-
-    def get_node(self, index):
-        return self.order[index]
-
-    def get_point(self, ques_index, ans_index):
-        (i, j) = get_correct_i_j(ques_index, ans_index)
-        return self.data[i][j]
-
     def update(self, history):
         last = history[-1]
         if last.type_ == A:
             for entry in history:
                 point = self.get_point(entry.index, last.index)
-                if entry.resp == YES:
-                    point.yes += 1
-                else:
-                    point.no += 1
+                point.inc(entry.resp, 1)
         del(history[:])
 
     def add(self, type_, text):
         if self.get_index(text) is None:
             self.size += 1
             self.order.append(Node(type_, text))
-            self.keys[text] = self.size - 1
+            self.index[text] = self.size - 1
             row = [Point(0,0) for i in range(self.size)]
             self.data.append(row)
         else:

@@ -11,14 +11,14 @@ class TestNewGame(unittest.TestCase):
 
     def test_graph_get(self):
         self.game.graph.add(A, "venemoth")
-        self.assertEqual(self.game.graph.keys["venemoth"], 0)
+        self.assertEqual(self.game.graph.index["venemoth"], 0)
         self.assertEqual(self.game.graph.order[0].type_, A)
         self.assertEqual(self.game.graph.order[0].text, "venemoth")
         self.assertEqual(self.game.graph.data[0][0].yes, 0)
         self.assertEqual(self.game.graph.data[0][0].no, 0)
 
         self.game.graph.add(Q, "wings")
-        self.assertEqual(self.game.graph.keys["wings"], 1)
+        self.assertEqual(self.game.graph.index["wings"], 1)
         self.assertEqual(self.game.graph.order[1].type_, Q)
         self.assertEqual(self.game.graph.order[1].text, "wings")
         self.assertEqual(len(self.game.graph.data[0]), 1)
@@ -200,7 +200,6 @@ class TestNewGame(unittest.TestCase):
             Entry(self.game.graph.get_index("bipedal"), Q, NO), 
             Entry(self.game.graph.get_index("wings"), Q, YES), 
             Entry(self.game.graph.get_index("venemoth"), A, YES)])
-
 
         self.game.graph.update([
             Entry(self.game.graph.get_index("starter"), Q, NO), 
