@@ -4,9 +4,7 @@ Q = 0
 A = 1
 NO = 0
 YES = 1
-ENTRY_TEXT_IND = 0
-ENTRY_TYPE_IND = 1
-ENTRY_YN_IND = 2
+MAX_TEXT_LEN = 10 # max text length in repr
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -45,8 +43,8 @@ class Point:
         if (self.yes + self.no) == 0:
             return None
         if (self.yes / (self.yes+self.no)) >= 0.5:
-            return 1
-        return 0
+            return YES
+        return NO
 
     def __repr__(self):
         return "<Point({}, {})>".format(self.yes, self.no)
@@ -58,7 +56,7 @@ class Node:
         self.text = text
 
     def __repr__(self):
-        return "<Node({}, {})>".format(self.type_, self.text[:8])
+        return "<Node({}, {})>".format(self.type_, self.text[:MAX_TEXT_LEN])
 
 class Entry:
 
@@ -105,6 +103,8 @@ class Graph:
             point = self.get_point(entry.index, a_index)
             if point.typical_resp() == entry.resp:
                 temp.append(a_index)
+            elif point.typical_resp() is None:
+                temp.append(a_index)
         self.filtered_a = temp
         
     # calculates the yes to all answers ratio based on the remaining
@@ -130,35 +130,6 @@ class Graph:
             except TypeError:
                 array[i] = None
 
-    def first_question(self):
-        self.init_filtered_q()
-        if len(self.filtered_q) == 0:
-            print("No questions")
-            return None
-
-        self.init_filtered_a()
-        temp = self.calc_ytoa(self.filtered_a, self.filtered_q)
-        
-        q_index = self.filtered_q[0]
-        q_dfrom50 = 0.5
-        self.calc_dfrom50(temp)
-
-        min_list = [q_index]
-        for i in self.filtered_q:
-            if temp[i] is not None:
-                if temp[i] < q_dfrom50:
-                    q_dfrom50 = temp[i]
-                    q_index = i
-                    del(min_list[:])
-                    min_list.append(q_index)
-                elif temp[i] == q_dfrom50:
-                    min_list.append(i)
-
-        self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
-        q_index = min_list[self.tie_breaker]
-        return self.get_node(q_index)
-        
-
     def check_all_ans_same(self):
         temp = []
         if len(self.filtered_a) == 0:
@@ -174,26 +145,30 @@ class Graph:
                     return True
         return False
 
-
     def next_question(self, history):
         if len(history) == 0:
-            return self.first_question()
+            self.init_filtered_q()
+            self.init_filtered_a()
+        else:
+            self.update_filtered_a(history[-1])
+            self.update_filtered_q(history[-1].index)
 
-        self.update_filtered_a(history[-1])
-        self.update_filtered_q(history[-1].index)
+            if len(self.filtered_a) == 1:
+                return self.get_node(self.filtered_a[0])
 
-        if len(self.filtered_a) == 1:
-            return self.get_node(self.filtered_a[0])
-
-        all_ans_same = self.check_all_ans_same()
-        if all_ans_same is True:
-            if len(self.filtered_q) > 0:
-                self.tie_breaker = (self.tie_breaker + 1) % len(self.filtered_q)
-                q_index = self.filtered_q[self.tie_breaker]
-                return self.get_node(q_index)
-            else:
-                print("You got us! No more questions from next question")
-                return -1
+            all_ans_same = self.check_all_ans_same()
+            if all_ans_same is True:
+                if len(self.filtered_q) > 0:
+# guess based on % of times selected as answer.
+# if incorrect, ask if want to continue.
+# if no, add it to existing.
+# if yes, find (0, 1, None). 
+                    self.tie_breaker = (self.tie_breaker + 1) % len(self.filtered_q)
+                    q_index = self.filtered_q[self.tie_breaker]
+                    return self.get_node(q_index)
+                else:
+                    print("You got us! No more questions from next question")
+                    return -1
 
         temp = self.calc_ytoa(self.filtered_a, self.filtered_q)
         q_index = self.filtered_q[0]
