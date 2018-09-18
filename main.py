@@ -6,6 +6,7 @@ NO = 0
 YES = 1
 MAX_TEXT_LEN = 10 # max text length in repr
 TYPICAL_RESP_THRESHOLD = 0.5
+ANS_CONFIDENCE_THRESHOLD = 0.5
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -57,8 +58,7 @@ class Point:
         return NO
 
     def __repr__(self):
-        return "<Point({}:{}, {:.0%})>".format(
-            self.yes, self.no, self.ytoa)
+        return "<Point({}:{})>".format(self.yes, self.no)
 
 class Node:
 
@@ -79,7 +79,7 @@ class Entry:
 
     def __repr__(self):
         return "<Entry({}, {}, {})>".format(
-            self.index, self.type_, self.resp[:MAX_TEXT_LEN])
+            self.index, self.type_, self.resp)
 
 class Graph:
 
@@ -126,14 +126,18 @@ class Graph:
                 break
 
     def update_filtered_a(self, entry):
-        temp = []
+        match = []
+        maybe = []
         for a_index in self.filtered_a:
             point = self.get_point(entry.index, a_index)
             if point.typical_resp() == entry.resp:
-                temp.append(a_index)
+                match.append(a_index)
             elif point.typical_resp() is None:
-                temp.append(a_index)
-        self.filtered_a = temp
+                maybe.append(a_index)
+        if len(match) == 0:
+            self.filtered_a = maybe
+        else:
+            self.filtered_a = match
         
     # calculates the yes to all answers ratio based on the remaining
     # answers. for example, given a list of filtered_answers [0, 1, 2]
@@ -167,11 +171,24 @@ class Graph:
             temp.append(self.calc_ytoa([i], self.filtered_q))
         for i in range(len(self.filtered_a)):
             for j in range(i+1, len(self.filtered_a)):
-                if temp[i] == temp[j]:
+                if temp[i] != temp[j]:
                     print(self.get_text(self.filtered_a[i]), temp[i])
                     print(self.get_text(self.filtered_a[j]), temp[j])
-                    return True
-        return False
+                    return False
+        return True
+
+    def get_ans_confidence(self):
+        return 1 if len(self.filtered_a) == 1 else 0
+
+    def get_best_ans(self):
+        max_index = self.filtered_a[0]
+        max_yes_count = 0
+        for a_index in self.filtered_a:
+            point = self.get_point(a_index, a_index)
+            if max_yes_count < point.yes:
+                max_index = a_index
+                max_yes_count = point.yes
+        return self.get_node(max_index)
 
     def next_question(self, history):
         if len(history) == 0:
@@ -181,8 +198,12 @@ class Graph:
             self.update_filtered_a(history[-1])
             self.update_filtered_q(history[-1])
 
-            if len(self.filtered_a) == 1:
-                return self.get_node(self.filtered_a[0])
+            if self.get_ans_confidence() > ANS_CONFIDENCE_THRESHOLD:
+                return self.get_best_ans()
+
+# consider checking whether all ans are same only if
+# there is good reason e.g. number of filtered ans
+# didn't decrease from previous iteration
 
             all_ans_same = self.check_all_ans_same()
             if all_ans_same is True:
@@ -198,20 +219,20 @@ class Graph:
                     print("You got us! No more questions from next question")
                     return -1
 
-        temp = self.calc_ytoa(self.filtered_a, self.filtered_q)
+        subtotal = self.calc_ytoa(self.filtered_a, self.filtered_q)
+        self.calc_dfrom50(subtotal)
         q_index = self.filtered_q[0]
-        q_dfrom50 = 0.5
-        self.calc_dfrom50(temp)
+        q_dfrom50 = TYPICAL_RESP_THRESHOLD
 
         min_list = [q_index]
         for i in self.filtered_q:
-            if temp[i] is not None:
-                if temp[i] < q_dfrom50:
-                    q_dfrom50 = temp[i]
+            if subtotal[i] is not None:
+                if subtotal[i] < q_dfrom50:
+                    q_dfrom50 = subtotal[i]
                     q_index = i
                     del(min_list[:])
                     min_list.append(q_index)
-                elif temp[i] == q_dfrom50:
+                elif subtotal[i] == q_dfrom50:
                     min_list.append(i)
 
         self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
@@ -247,33 +268,46 @@ class Game:
     def track_resp(self, index, type_, resp):
         self.history.append(Entry(index, type_, resp))
 
-    def add_question(self):
-        resp = input("Add a keyword to describe the pokemon: ")
-        self.graph.add(Q, resp)
-
-    def add_answer(self):
-        resp = input("Enter the name of the pokemon you are thinking of: ");
-        self.graph.add(A, resp)
-
-    def update_graph_on_lose(self):
-        if self.history[-1].type_ == A:
-            print("Popped", self.history.pop())
-        answer = input("Enter the name of the pokemon you were thinking of: ");
-        question = input("Add a keyword to describe the pokemon. If none, type 'n':")
-        if question in ["n"]:
-            question = None
-        self.graph.add(A, answer)
-        if question is not None:
+    def add_optional_question(self):
+        question = input("Add a keyword to describe the pokemon (optional): ")
+        if question is not "":
             self.graph.add(Q, question)
             self.track_resp(self.graph.get_index(question), Q, YES)
+
+    def add_question(self):
+        question = input("Add a keyword to describe the pokemon: ")
+        self.graph.add(Q, question)
+        self.track_resp(self.graph.get_index(question), Q, YES)
+
+    def add_answer(self):
+        answer = input("Enter the name of the pokemon: ")
+        self.graph.add(A, answer)
         self.track_resp(self.graph.get_index(answer), A, YES)
+
+    def remove_incorrect_ans(self):
+        if self.history[-1].type_ == A:
+            print("Popped", self.history.pop())
+
+    def swap_last_two_entries(self):
+        self.history[-1], self.history[-2] = self.history[-2], self.history[-1]
+
+    def ask_answer(self):
+        if len(self.history) > 0:
+            self.remove_incorrect_ans()
+            self.add_answer()
+            self.add_optional_question()
+        else:
+            self.add_answer()
+            self.add_question()
+        if self.history[-1].type_ == Q:
+            self.swap_last_two_entries()
 
     def ask_question(self):
         question = self.graph.next_question(self.history)
         if question is None:
             print("No more questions to ask")
         elif question == -1:
-            self.update_graph_on_lose()
+            self.ask_answer()
         else:
             resp = get_ans(question.text)
             self.track_resp(self.graph.get_index(question.text), question.type_, resp)
@@ -312,7 +346,7 @@ class Game:
             return True
         elif self.history[-1].resp == NO:
             print("Darn...we lost!")
-            self.update_graph_on_lose()
+            self.ask_answer()
             return True
         else:
             print("Error????", self.history)

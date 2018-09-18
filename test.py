@@ -172,7 +172,12 @@ class TestNewGame(unittest.TestCase):
             Entry(self.game.graph.get_index("dragonite"), A, YES)])
         self.game.graph.init_filtered_q()
         self.game.graph.init_filtered_a()
-        self.assertEqual(self.game.graph.check_all_ans_same(), True)
+        """
+        dragonite: [[1.0, None, 1.0, None, 1.0, None],
+        charizard:  [1.0, None, 1.0, None, 1.0, None],
+        rihorn:     [None, None, None, None, None, None]]
+        """
+        self.assertEqual(self.game.graph.check_all_ans_same(), False)
 
 
     """
