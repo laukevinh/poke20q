@@ -125,6 +125,7 @@ class Graph:
                 del(self.filtered_q[i])
                 break
 
+# TODO update so if match answers don't work, try for maybes
     def update_filtered_a(self, entry):
         match = []
         maybe = []
@@ -190,6 +191,10 @@ class Graph:
                 max_yes_count = point.yes
         return self.get_node(max_index)
 
+    def round_robin(self, array):
+        self.tie_breaker = (self.tie_breaker + 1) % len(array)
+        return array[self.tie_breaker]
+
     def next_question(self, history):
         if len(history) == 0:
             self.init_filtered_q()
@@ -212,8 +217,7 @@ class Graph:
 # if incorrect, ask if want to continue.
 # if no, add it to existing.
 # if yes, find (0, 1, None). 
-                    self.tie_breaker = (self.tie_breaker + 1) % len(self.filtered_q)
-                    q_index = self.filtered_q[self.tie_breaker]
+                    q_index = self.round_robin(self.filtered_q)
                     return self.get_node(q_index)
                 else:
                     print("You got us! No more questions from next question")
@@ -235,8 +239,7 @@ class Graph:
                 elif subtotal[i] == q_dfrom50:
                     min_list.append(i)
 
-        self.tie_breaker = (self.tie_breaker + 1) % len(min_list)
-        q_index = min_list[self.tie_breaker]
+        q_index = self.round_robin(min_list)
         return self.get_node(q_index)
 
     def update(self, history):
@@ -304,9 +307,7 @@ class Game:
 
     def ask_question(self):
         question = self.graph.next_question(self.history)
-        if question is None:
-            print("No more questions to ask")
-        elif question == -1:
+        if question == -1:
             self.ask_answer()
         else:
             resp = get_ans(question.text)
@@ -314,15 +315,6 @@ class Game:
 
     def update_graph(self, history):
         self.graph.update(history)
-
-    def initialize_graph(self):
-        answer = input("Enter the name of the pokemon you are thinking of: ");
-        question = input("Add a keyword to describe the pokemon: ")
-        self.graph.add(Q, question)
-        self.graph.add(A, answer)
-        self.track_resp(self.graph.get_index(question), Q, YES)
-        self.track_resp(self.graph.get_index(answer), A, YES)
-        self.update_graph(self.history)
 
     def save(self):
         if self.saved_file is None:
@@ -334,7 +326,8 @@ class Game:
         print("New game")
         add_more = YES
         while (add_more):
-            self.initialize_graph()
+            self.ask_answer()
+            self.update_graph(self.history)
             add_more = get_ans("Add another question and answer (y/n)?")
         
     def resume_game(self):
