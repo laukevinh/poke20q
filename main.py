@@ -107,6 +107,30 @@ class Graph:
         (i, j) = (j, i) if j > i else (i, j)
         return self.data[i][j]
 
+    def add(self, type_, text):
+        if self.get_index(text) is None:
+            self.size += 1
+            self.order.append(Node(type_, text))
+            self.index[text] = self.size - 1
+            row = [Point(0,0) for i in range(self.size)]
+            self.data.append(row)
+        else:
+            print("{} already exists in the db".format(text))
+
+    def add_answer(self, text):
+        self.add(A, text)
+
+    def add_question(self, text):
+        self.add(Q, text)
+
+    def update(self, history):
+        last = history[-1]
+        if last.type_ == A:
+            for entry in history:
+                point = self.get_point(entry.index, last.index)
+                point.inc(entry.resp, 1)
+        del(history[:])
+
     def reset_filter(self, type_):
         return [i for i in range(self.size) if self.get_node(i).type_ == type_]
 
@@ -253,24 +277,6 @@ class Graph:
 
         q_index = self.round_robin(min_list)
         return self.get_node(q_index)
-
-    def update(self, history):
-        last = history[-1]
-        if last.type_ == A:
-            for entry in history:
-                point = self.get_point(entry.index, last.index)
-                point.inc(entry.resp, 1)
-        del(history[:])
-
-    def add(self, type_, text):
-        if self.get_index(text) is None:
-            self.size += 1
-            self.order.append(Node(type_, text))
-            self.index[text] = self.size - 1
-            row = [Point(0,0) for i in range(self.size)]
-            self.data.append(row)
-        else:
-            print("{} already exists in the db".format(text))
 
 class Game:
 

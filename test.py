@@ -6,8 +6,8 @@ class TestGraph(unittest.TestCase):
     def setUp(self):
         self.g = Graph()
         for i in range(3):
-            self.g.add(Q, "q{}".format(i))
-            self.g.add(A, "a{}".format(i))
+            self.g.add_question("q{}".format(i))
+            self.g.add_answer("a{}".format(i))
         
     def test_get_index(self):
         self.assertEqual(self.g.get_index("q0"), 0)
@@ -22,9 +22,32 @@ class TestGraph(unittest.TestCase):
 
     def test_get_point(self):
         i, j = 2, 3
-        self.assertEqual(self.g.get_point(i, j), self.g.data[j][i])
+        self.assertIs(self.g.get_point(i, j), self.g.data[j][i])
         i, j = 3, 2
-        self.assertEqual(self.g.get_point(i, j), self.g.data[i][j])
+        self.assertIs(self.g.get_point(i, j), self.g.data[i][j])
+
+    def test_update(self):
+        # Set up a mock history and update
+        q0 = self.g.get_index("q0")
+        q1 = self.g.get_index("q1")
+        a1 = self.g.get_index("a1")
+        history = [
+            Entry(q0, Q, NO), 
+            Entry(q1, Q, YES), 
+            Entry(a1, A, YES)
+            ]
+        self.g.update(history)
+
+        # test that definitive answers were recorded correctly
+        p_q0_a1 = self.g.get_point(q0, a1)
+        p_q1_a1 = self.g.get_point(q1, a1)
+        self.assertEqual(p_q0_a1.typical_resp(), NO)
+        self.assertEqual(p_q1_a1.typical_resp(), YES)
+
+        # test that unlinked questions and answers remain N/A
+        q2 = self.g.get_index("q2")
+        p_q2_a1 = self.g.get_point(q2, a1)
+        self.assertEqual(p_q2_a1.typical_resp(), None)
 
     def test_reset_filter(self):
         self.assertEqual(self.g.reset_filter(A), [1, 3, 5])
@@ -32,6 +55,11 @@ class TestGraph(unittest.TestCase):
 
     def test_filter_out(self):
         self.assertEqual(self.g.filter_out(3, [0, 1, 2, 3, 4]), [0, 1, 2, 4])
+
+    def test_update_filtered_q(self):
+        index = self.g.get_index("q1")
+        entry = Entry(index, Q, YES)
+        #self.assertEqual(self.g.update_filtered_q(
 
 
 class TestNewGame(unittest.TestCase):
