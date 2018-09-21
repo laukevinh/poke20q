@@ -107,24 +107,24 @@ class Graph:
         (i, j) = (j, i) if j > i else (i, j)
         return self.data[i][j]
 
-    def reset_filter(self, field):
-        del(field[:])
-        resp_type = Q if field == self.filtered_q else A
-        for index in range(self.size):
-            if self.get_node(index).type_ == resp_type:
-                field.append(index)
+    def reset_filter(self, type_):
+        return [i for i in range(self.size) if self.get_node(i).type_ == type_]
 
     def init_filtered_q(self):
-        self.reset_filter(self.filtered_q)
+        self.filtered_q = self.reset_filter(Q)
+        return self.filtered_q
 
     def init_filtered_a(self):
-        self.reset_filter(self.filtered_a)
+        self.filtered_a = self.reset_filter(A)
+        return self.filtered_a
 
+    def filter_out(self, index, array):
+        while index in array: array.remove(index)
+        return array
+        
     def update_filtered_q(self, entry):
-        for i in range(len(self.filtered_q)):
-            if self.filtered_q[i] == entry.index:
-                del(self.filtered_q[i])
-                break
+        self.filtered_q = self.filter_out(entry.index, self.filtered_q)
+        return self.filtered_q
 
 # TODO update so if match answers don't work, try for maybes
     def update_filtered_a(self, entry):
