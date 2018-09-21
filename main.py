@@ -91,6 +91,7 @@ class Graph:
         self.filtered_q = []
         self.filtered_a = []
         self.tie_breaker = 0
+        self.keep_guessing = True
         
     def get_index(self, text_key):
         return self.index.get(text_key)
@@ -181,19 +182,24 @@ class Graph:
     def get_ans_confidence(self):
         return 1 if len(self.filtered_a) == 1 else 0
 
+    def round_robin(self, array):
+        self.tie_breaker = (self.tie_breaker + 1) % len(array)
+        return array[self.tie_breaker]
+
     def get_best_ans(self):
         max_index = self.filtered_a[0]
         max_yes_count = 0
+        max_list = [max_index]
         for a_index in self.filtered_a:
             point = self.get_point(a_index, a_index)
             if max_yes_count < point.yes:
                 max_index = a_index
                 max_yes_count = point.yes
-        return self.get_node(max_index)
-
-    def round_robin(self, array):
-        self.tie_breaker = (self.tie_breaker + 1) % len(array)
-        return array[self.tie_breaker]
+                del(max_list[:])
+                max_list.append(a_index)
+            elif max_yes_count == point.yes:
+                max_list.append(a_index)
+        return self.get_node(self.round_robin(max_list))
 
     def next_question(self, history):
         if len(history) == 0:
@@ -212,8 +218,14 @@ class Graph:
 
             all_ans_same = self.check_all_ans_same()
             if all_ans_same is True:
-                if len(self.filtered_q) > 0:
 # guess based on % of times selected as answer.
+                if self.keep_guessing == True:
+                    self.keep_guessing = False
+                    print("guessing!")
+                    #a_index = self.round_robin(self.filtered_a)
+                    #return self.get_node(a_index)
+                    return self.get_best_ans()
+                if len(self.filtered_q) > 0:
 # if incorrect, ask if want to continue.
 # if no, add it to existing.
 # if yes, find (0, 1, None). 
@@ -364,8 +376,14 @@ class Game:
     def stop(self):
         self.play = False
 
+    def reset(self):
+        self.graph.keep_guessing = True
+
     def prompt_replay(self):
-        if get_ans("Replay? (y/n) ") == NO: game.stop()
+        if get_ans("Replay? (y/n) ") == NO: 
+            game.stop()
+        else:
+            game.reset()
 
 if __name__ == "__main__":
     game = Game()
