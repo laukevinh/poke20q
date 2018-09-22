@@ -49,18 +49,121 @@ class TestGraph(unittest.TestCase):
         p_q2_a1 = self.g.get_point(q2, a1)
         self.assertEqual(p_q2_a1.typical_resp(), None)
 
-    def test_reset_filter(self):
-        self.assertEqual(self.g.reset_filter(A), [1, 3, 5])
-        self.assertEqual(self.g.reset_filter(Q), [0, 2, 4])
+    def test_get_all_potentials(self):
+        self.assertEqual(self.g.get_all_potentials(A), [1, 3, 5])
+        self.assertEqual(self.g.get_all_potentials(Q), [0, 2, 4])
+        self.assertEqual(self.g.get_all_potential_answers(), [1, 3, 5])
+        self.assertEqual(self.g.get_all_potential_questions(), [0, 2, 4])
 
     def test_filter_out(self):
         self.assertEqual(self.g.filter_out(3, [0, 1, 2, 3, 4]), [0, 1, 2, 4])
 
-    def test_update_filtered_q(self):
-        index = self.g.get_index("q1")
-        entry = Entry(index, Q, YES)
-        #self.assertEqual(self.g.update_filtered_q(
+    def test_get_potential_questions(self):
+        # Set up a mock history and update
+        q0 = self.g.get_index("q0")
+        q1 = self.g.get_index("q1")
+        q2 = self.g.get_index("q2")
+        a0 = self.g.get_index("a0")
+        a1 = self.g.get_index("a1")
+        a2 = self.g.get_index("a2")
+        history = [
+            Entry(q0, Q, NO), 
+            Entry(q1, Q, YES), 
+            Entry(a1, A, YES)
+            ]
+        self.g.update(history)
+        history = [
+            Entry(q0, Q, YES), 
+            Entry(q1, Q, NO), 
+            Entry(q2, Q, YES),
+            Entry(a0, A, YES)
+            ]
+        self.g.update(history)
 
+        # get all potential questions 
+        potential_questions = self.g.get_all_potential_questions()
+
+        # test update potential questions
+        last_question = Entry(q0, Q, YES)
+        self.assertEqual(self.g.get_potential_questions(last_question.index, potential_questions), [q1, q2])
+        
+    def test_get_potential_answers(self):
+        # Set up a mock history and update
+        q0 = self.g.get_index("q0")
+        q1 = self.g.get_index("q1")
+        q2 = self.g.get_index("q2")
+        a0 = self.g.get_index("a0")
+        a1 = self.g.get_index("a1")
+        a2 = self.g.get_index("a2")
+        history = [
+            Entry(q0, Q, YES), 
+            Entry(q1, Q, NO), 
+            Entry(q2, Q, YES),
+            Entry(a0, A, YES)
+            ]
+        self.g.update(history)
+        history = [
+            Entry(q1, Q, YES), 
+            Entry(a1, A, YES)
+            ]
+        self.g.update(history)
+        history = [
+            Entry(q1, Q, NO), 
+            Entry(q2, Q, NO),
+            Entry(a2, A, YES)
+            ]
+        self.g.update(history)
+
+        # get all potential answers 
+        potential_answers = self.g.get_all_potential_answers2()
+
+        # test update potential answers with only 1 entry
+        last_question = Entry(q0, Q, YES)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a0], [a1, a2])
+            )
+        last_question = Entry(q0, Q, NO)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers), 
+            ([], [a1, a2])
+            )
+        last_question = Entry(q1, Q, NO)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a0, a2], [])
+            )
+
+        # reset and get all potential answers again
+        potential_answers = self.g.get_all_potential_answers2()
+
+        # test update potential answers with 2 entries
+        prev_question = Entry(q0, Q, YES)
+        potential_answers = self.g.get_potential_answers(prev_question, potential_answers)
+        last_question = Entry(q1, Q, YES)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a1], [])
+            )
+        last_question = Entry(q1, Q, NO)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a0, a2], [])
+            )
+        last_question = Entry(q2, Q, YES)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a0], [a1])
+            )
+        last_question = Entry(q2, Q, NO)
+        self.assertEqual(
+            self.g.get_potential_answers(last_question, potential_answers),
+            ([a2], [a1])
+            )
+
+    def test_reset_filter(self):
+        self.assertEqual(self.g.reset_filter(A), [1, 3, 5])
+        self.assertEqual(self.g.reset_filter(Q), [0, 2, 4])
 
 class TestNewGame(unittest.TestCase):
     def setUp(self):

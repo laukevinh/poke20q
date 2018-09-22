@@ -131,6 +131,44 @@ class Graph:
                 point.inc(entry.resp, 1)
         del(history[:])
 
+    def get_all_potentials(self, type_):
+        return [i for i in range(self.size) if self.get_node(i).type_ == type_]
+
+    def get_all_potential_questions(self):
+        return self.get_all_potentials(Q)
+
+    def get_all_potential_answers(self):
+        return self.get_all_potentials(A)
+
+    def get_all_potential_answers2(self):
+        return (self.get_all_potentials(A), [])
+
+    def filter_out(self, index, array):
+        while index in array: array.remove(index)
+        return array
+        
+    def get_potential_questions(self, last_question_index, potential_questions):
+        return self.filter_out(last_question_index, potential_questions)
+
+    def get_potential_answers(self, last_entry, potential_answers):
+        match = []
+        maybe = []
+        for a_index in potential_answers[0]:
+            point = self.get_point(last_entry.index, a_index)
+            if point.typical_resp() == last_entry.resp:
+                match.append(a_index)
+            elif point.typical_resp() is None:
+                maybe.append(a_index)
+
+        for a_index in potential_answers[1]:
+            point = self.get_point(last_entry.index, a_index)
+            if point.typical_resp() == last_entry.resp:
+                match.append(a_index)
+            elif point.typical_resp() is None:
+                maybe.append(a_index)
+
+        return (match, maybe)
+
     def reset_filter(self, type_):
         return [i for i in range(self.size) if self.get_node(i).type_ == type_]
 
@@ -142,10 +180,6 @@ class Graph:
         self.filtered_a = self.reset_filter(A)
         return self.filtered_a
 
-    def filter_out(self, index, array):
-        while index in array: array.remove(index)
-        return array
-        
     def update_filtered_q(self, entry):
         self.filtered_q = self.filter_out(entry.index, self.filtered_q)
         return self.filtered_q
