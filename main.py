@@ -7,6 +7,10 @@ YES = 1
 MAX_TEXT_LEN = 10 # max text length in repr
 TYPICAL_RESP_THRESHOLD = 0.5
 ANS_CONFIDENCE_THRESHOLD = 0.5
+CONF_LVL_READY = 1
+CONF_LVL_SEARCHING = 0.5
+CONF_LVL_GUESS = 0
+CONF_LVL_STOP = -1
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -138,10 +142,9 @@ class Graph:
         return self.get_all_potentials(Q)
 
     def get_all_potential_answers(self):
-        return self.get_all_potentials(A)
-
-    def get_all_potential_answers2(self):
-        return (self.get_all_potentials(A), [])
+        match = self.get_all_potentials(A)
+        maybe = []
+        return (match, maybe)
 
     def filter_out(self, index, array):
         while index in array: array.remove(index)
@@ -150,24 +153,50 @@ class Graph:
     def get_potential_questions(self, last_question_index, potential_questions):
         return self.filter_out(last_question_index, potential_questions)
 
-    def get_potential_answers(self, last_entry, potential_answers):
-        match = []
-        maybe = []
-        for a_index in potential_answers[0]:
+    def split_to_match_and_maybe(self, last_entry, array, match, maybe):
+        for a_index in array:
             point = self.get_point(last_entry.index, a_index)
             if point.typical_resp() == last_entry.resp:
                 match.append(a_index)
             elif point.typical_resp() is None:
                 maybe.append(a_index)
-
-        for a_index in potential_answers[1]:
-            point = self.get_point(last_entry.index, a_index)
-            if point.typical_resp() == last_entry.resp:
-                match.append(a_index)
-            elif point.typical_resp() is None:
-                maybe.append(a_index)
-
         return (match, maybe)
+
+    def get_potential_answers(self, last_entry, potential_answers):
+        prev_match, prev_maybe = potential_answers[0], potential_answers[1]
+        match, maybe = [], []
+        match, maybe = self.split_to_match_and_maybe(last_entry, prev_match, match, maybe)
+        match, maybe = self.split_to_match_and_maybe(last_entry, prev_maybe, match, maybe)
+        return (match, maybe)
+
+    def get_confidence_lvl(self, potential_answers):
+        len_match = len(potential_answers[0])
+        len_maybe = len(potential_answers[1])
+        if (len_match == 1):
+            return CONF_LVL_READY
+        elif (len_match > 1):
+            return CONF_LVL_SEARCHING
+        elif (len_maybe > 0):
+            return CONF_LVL_GUESS
+        else:
+            return CONF_LVL_STOP
+
+    def get_next_question(self, history, potential_answers, potential_questions):
+        # if no history, get all potential questions and answers
+        # else apply filter based on last entry in history
+        # last entry in history must be a question
+        if len(history) == 0:
+            potential_answers = self.get_all_potential_answers()
+            potential_questions = self.get_all_potential_questions()
+        else:
+            last_entry = history[-1]
+            potential_answers = self.get_potential_answers(last_entry, potential_answers)
+            potential_questions = self.get_potential_questions(last_entry, potential_questions)
+
+        confidence_lvl = self.get_confidence_lvl(potential_answers)
+
+        if confidence_lvl == READY:
+            return 
 
     def reset_filter(self, type_):
         return [i for i in range(self.size) if self.get_node(i).type_ == type_]
