@@ -303,7 +303,6 @@ class TestGraph2(unittest.TestCase):
                 ]
             )
         self.assertEqual(min(result)[1], self.q1)
-        
 
     def test_get_next_question(self):
         # get all potential answers and questions

@@ -13,6 +13,7 @@ CONF_LVL_SEARCHING = 1
 CONF_LVL_GUESS = -1
 CONF_LVL_STOP = -2
 CONF_LVL_TRY_MAYBE = -3
+CONF_LVL_WIN = -4
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -106,6 +107,8 @@ class Graph:
             return CONF_LVL_STOP
         elif text_key == CONF_LVL_TRY_MAYBE:
             return CONF_LVL_TRY_MAYBE
+        elif text_key == CONF_LVL_WIN:
+            return CONF_LVL_WIN
         return self.index.get(text_key)
 
     def get_node(self, index):
@@ -193,7 +196,7 @@ class Graph:
         if (last_entry is not None
                 and last_entry.type_ == A
                 and last_entry.resp == YES):
-            return CONF_LVL_STOP
+            return CONF_LVL_WIN
         if (len_match == 1):
             return CONF_LVL_READY
         elif (len_match > 1):
@@ -228,7 +231,7 @@ class Graph:
             try:
                 value = abs(subtotal_point.ytoa() - TYPICAL_RESP_THRESHOLD)
             except TypeError:
-                value = None
+                value = 1
             result.append((value, q_index))
         return result
 
@@ -255,6 +258,8 @@ class Graph:
             node = self.get_node(potential_answers[0].pop())
         elif confidence_lvl == CONF_LVL_STOP:
             node = Node(C, CONF_LVL_STOP)
+        elif confidence_lvl == CONF_LVL_WIN:
+            node = Node(C, CONF_LVL_WIN)
         elif confidence_lvl == CONF_LVL_GUESS:
             node = Node(C, CONF_LVL_GUESS)
         elif confidence_lvl == CONF_LVL_TRY_MAYBE:
@@ -415,13 +420,15 @@ class Game:
         self.graph = Graph()
         self.history = []
         self.play = True
+        self.potential_answers = []
+        self.potential_questions = []
 
     def track_resp(self, index, type_, resp):
         self.history.append(Entry(index, type_, resp))
 
     def add_optional_question(self):
         question = input("Add a keyword to describe the pokemon (optional): ")
-        if question is not "":
+        if question != "":
             self.graph.add(Q, question)
             self.track_resp(self.graph.get_index(question), Q, YES)
 
@@ -444,7 +451,6 @@ class Game:
 
     def ask_answer(self):
         if len(self.history) > 0:
-            self.remove_incorrect_ans()
             self.add_answer()
             self.add_optional_question()
         else:
@@ -454,12 +460,38 @@ class Game:
             self.swap_last_two_entries()
 
     def ask_question(self):
-        question = self.graph.next_question(self.history)
-        if question == -1:
-            self.ask_answer()
+        result = self.graph.get_next_question(
+            self.history, 
+            self.potential_answers, 
+            self.potential_questions
+            )
+        (node, self.potential_answers, self.potential_questions) = result
+        if node.type_ == C:
+            if node.text == CONF_LVL_STOP:
+                print("Darn, we didn't get it")
+                self.ask_answer()
+                self.update_graph(self.history)
+                resp = get_ans("Play again?")
+                return resp
+            elif node.text == CONF_LVL_WIN:
+                self.update_graph(self.history)
+                resp = get_ans("We got it! Play again?")
+                return resp
+            elif node.text == CONF_LVL_GUESS:
+                resp = get_ans("Tricky...want me to guess?")
+                self.track_resp(CONF_LVL_GUESS, C, resp)
+                return resp
+            elif node.text == CONF_LVL_TRY_MAYBE:
+                resp = get_ans("Tricky...try the maybes?")
+                self.track_resp(CONF_LVL_TRY_MAYBE, C, resp)
+                return resp
+            else:
+                print("Error: Undefined Control flag {}".format(node.index))
+                raise 
         else:
-            resp = get_ans(question.text)
-            self.track_resp(self.graph.get_index(question.text), question.type_, resp)
+            resp = get_ans(node.text)
+            self.track_resp(self.graph.get_index(node.text), node.type_, resp)
+            return YES
 
     def update_graph(self, history):
         self.graph.update(history)
@@ -499,13 +531,11 @@ class Game:
         else:
             self.resume_game()
 
-        finished = False
-        while (not finished):
-            self.ask_question()
-            if self.history[-1].type_ == A:
-                finished = self.check_win()
+        keep_playing = self.ask_question()
+        while (keep_playing == YES):
+            keep_playing = self.ask_question()
+        del(self.history[:])
 
-        self.update_graph(self.history)
         print(self.graph.data, self.graph.order)
         self.save()
 
@@ -516,7 +546,7 @@ class Game:
         self.graph.keep_guessing = True
 
     def prompt_replay(self):
-        if get_ans("Replay? (y/n) ") == NO: 
+        if get_ans("Replay (y/n)") == NO: 
             game.stop()
         else:
             game.reset()
