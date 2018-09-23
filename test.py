@@ -1,5 +1,5 @@
 import unittest
-from main import Q, A, YES, NO
+from main import Q, A, C, YES, NO
 from main import CONF_LVL_READY, CONF_LVL_SEARCHING, CONF_LVL_GUESS, CONF_LVL_STOP
 
 from main import Point, Node, Entry, Graph, Game
@@ -291,8 +291,26 @@ class TestGraph2(unittest.TestCase):
         history.append(Entry(q_index, A, NO))
         result = self.g.get_next_question(history, potential_answers, potential_questions)
         (node, potential_answers, potential_questions) = result
-        self.assertEqual(node, CONF_LVL_GUESS)
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, CONF_LVL_GUESS)
+        self.assertEqual(potential_answers, ([], [self.a1]))
+        self.assertEqual(potential_questions, [self.q0, self.q1])
 
+        history.append(Entry(q_index, C, YES))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.a1)
+        self.assertEqual(potential_answers, ([], []))
+        self.assertEqual(potential_questions, [self.q0, self.q1])
+
+        history.append(Entry(q_index, A, NO))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, CONF_LVL_STOP)
+        self.assertEqual(potential_answers, ([], []))
+        self.assertEqual(potential_questions, [self.q0, self.q1])
 
     def test_reset_filter(self):
         self.assertEqual(self.g.reset_filter(A), [1, 3, 5])

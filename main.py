@@ -2,15 +2,16 @@ from datetime import datetime
 
 Q = 0
 A = 1
+C = 2
 NO = 0
 YES = 1
 MAX_TEXT_LEN = 10 # max text length in repr
 TYPICAL_RESP_THRESHOLD = 0.5
 ANS_CONFIDENCE_THRESHOLD = 0.5
-CONF_LVL_READY = 1
-CONF_LVL_SEARCHING = 0.5
-CONF_LVL_GUESS = 0
-CONF_LVL_STOP = -1
+CONF_LVL_READY = 0
+CONF_LVL_SEARCHING = 1
+CONF_LVL_GUESS = -1
+CONF_LVL_STOP = -2
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -98,6 +99,10 @@ class Graph:
         self.keep_guessing = True
         
     def get_index(self, text_key):
+        if text_key == CONF_LVL_GUESS:
+            return CONF_LVL_GUESS
+        elif text_key == CONF_LVL_STOP:
+            return CONF_LVL_STOP
         return self.index.get(text_key)
 
     def get_node(self, index):
@@ -151,6 +156,8 @@ class Graph:
         return array
         
     def get_potential_questions(self, last_entry, potential_questions):
+        if (last_entry.type_ == C):
+            return potential_questions
         return self.filter_out(last_entry.index, potential_questions)
 
     def split_to_match_and_maybe(self, last_entry, array, match, maybe):
@@ -164,6 +171,9 @@ class Graph:
 
     def get_potential_answers(self, last_entry, potential_answers):
         prev_match, prev_maybe = potential_answers[0], potential_answers[1]
+        if (last_entry.type_ == C):
+            potential_answers = (potential_answers[1], potential_answers[0])
+            return potential_answers
         match, maybe = [], []
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_match, match, maybe)
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_maybe, match, maybe)
@@ -175,9 +185,9 @@ class Graph:
         if (len_match == 1):
             return CONF_LVL_READY
         elif (len_match > 1):
-            if (prev_len_potential_answers > len_match):
-                return CONF_LVL_SEARCHING
-            return CONF_LVL_GUESS
+            if (prev_len_potential_answers == len_match):
+                return CONF_LVL_GUESS
+            return CONF_LVL_SEARCHING
         elif (len_maybe > 0):
             return CONF_LVL_GUESS
         else:
@@ -225,9 +235,9 @@ class Graph:
         if confidence_lvl == CONF_LVL_READY:
             node = self.get_node(potential_answers[0].pop())
         elif confidence_lvl == CONF_LVL_STOP:
-            node = CONF_LVL_STOP
+            node = Node(C, CONF_LVL_STOP)
         elif confidence_lvl == CONF_LVL_GUESS:
-            node = CONF_LVL_GUESS
+            node = Node(C, CONF_LVL_GUESS)
         elif confidence_lvl == CONF_LVL_SEARCHING:
             q_index = min(self.diff_from_halving_answers(potential_answers, potential_questions))[1]
             node = self.get_node(q_index)
