@@ -129,7 +129,7 @@ class Graph:
 
     def update(self, history):
         last = history[-1]
-        if last.type_ == A:
+        if last.type_ == A and last.resp == YES:
             for entry in history:
                 point = self.get_point(entry.index, last.index)
                 point.inc(entry.resp, 1)
@@ -150,8 +150,8 @@ class Graph:
         while index in array: array.remove(index)
         return array
         
-    def get_potential_questions(self, last_question_index, potential_questions):
-        return self.filter_out(last_question_index, potential_questions)
+    def get_potential_questions(self, last_entry, potential_questions):
+        return self.filter_out(last_entry.index, potential_questions)
 
     def split_to_match_and_maybe(self, last_entry, array, match, maybe):
         for a_index in array:
@@ -169,34 +169,70 @@ class Graph:
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_maybe, match, maybe)
         return (match, maybe)
 
-    def get_confidence_lvl(self, potential_answers):
+    def get_confidence_lvl(self, prev_len_potential_answers, potential_answers):
         len_match = len(potential_answers[0])
         len_maybe = len(potential_answers[1])
         if (len_match == 1):
             return CONF_LVL_READY
         elif (len_match > 1):
-            return CONF_LVL_SEARCHING
+            if (prev_len_potential_answers > len_match):
+                return CONF_LVL_SEARCHING
+            return CONF_LVL_GUESS
         elif (len_maybe > 0):
             return CONF_LVL_GUESS
         else:
             return CONF_LVL_STOP
 
+    def diff_from_halving_answers(self, potential_answers, potential_questions):
+        match = potential_answers[0]
+        len_match = len(match)
+        len_potential_questions = len(potential_questions)
+        result = []
+        for i in range(len_potential_questions):
+            q_index = potential_questions[i]
+            subtotal_point = Point(0,0)
+            for j in range(len_match):
+                a_index = match[j]
+                point = self.get_point(q_index, a_index)
+                subtotal_point.inc(YES, point.yes)
+                subtotal_point.inc(NO, point.no)
+            try:
+                value = abs(subtotal_point.ytoa() - TYPICAL_RESP_THRESHOLD)
+            except TypeError:
+                value = None
+            result.append((value, q_index))
+        return result
+
     def get_next_question(self, history, potential_answers, potential_questions):
         # if no history, get all potential questions and answers
         # else apply filter based on last entry in history
         # last entry in history must be a question
+        # return value of get_next_question is a Node(type_, text)
         if len(history) == 0:
             potential_answers = self.get_all_potential_answers()
             potential_questions = self.get_all_potential_questions()
+            prev_len_potential_answers = len(potential_answers[0]) + 1
         else:
             last_entry = history[-1]
+            prev_len_potential_answers = len(potential_answers[0])
             potential_answers = self.get_potential_answers(last_entry, potential_answers)
             potential_questions = self.get_potential_questions(last_entry, potential_questions)
 
-        confidence_lvl = self.get_confidence_lvl(potential_answers)
+        confidence_lvl = self.get_confidence_lvl(prev_len_potential_answers, potential_answers)
 
-        if confidence_lvl == READY:
-            return 
+        # if READY, ask answer but don't remove from potential answers
+        # leave that for game to handle
+        if confidence_lvl == CONF_LVL_READY:
+            node = self.get_node(potential_answers[0].pop())
+        elif confidence_lvl == CONF_LVL_STOP:
+            node = CONF_LVL_STOP
+        elif confidence_lvl == CONF_LVL_GUESS:
+            node = CONF_LVL_GUESS
+        elif confidence_lvl == CONF_LVL_SEARCHING:
+            q_index = min(self.diff_from_halving_answers(potential_answers, potential_questions))[1]
+            node = self.get_node(q_index)
+
+        return (node, potential_answers, potential_questions)
 
     def reset_filter(self, type_):
         return [i for i in range(self.size) if self.get_node(i).type_ == type_]

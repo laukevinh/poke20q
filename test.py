@@ -100,15 +100,21 @@ class TestGraph2(unittest.TestCase):
         # test update potential questions
         last_question = Entry(self.q0, Q, YES)
         self.assertEqual(
-            self.g.get_potential_questions(last_question.index, potential_questions), 
+            self.g.get_potential_questions(last_question, potential_questions), 
             [self.q1, self.q2]
+            )
+
+        last_question = Entry(self.q2, Q, YES)
+        self.assertEqual(
+            self.g.get_potential_questions(last_question, potential_questions), 
+            [self.q1]
             )
         
     def test_get_potential_answers(self):
         # get all potential answers 
         potential_answers = self.g.get_all_potential_answers()
 
-        # test update potential answers with only 1 entry
+        # test update potential answers after 1 question entry
         last_question = Entry(self.q0, Q, YES)
         self.assertEqual(
             self.g.get_potential_answers(last_question, potential_answers),
@@ -129,7 +135,7 @@ class TestGraph2(unittest.TestCase):
         prev_question = Entry(self.q0, Q, YES)
         potential_answers = self.g.get_potential_answers(prev_question, potential_answers)
 
-        # test update potential answers with 2nd entry
+        # test update potential answers after 2nd question entry
         last_question = Entry(self.q1, Q, YES)
         self.assertEqual(
             self.g.get_potential_answers(last_question, potential_answers),
@@ -152,29 +158,141 @@ class TestGraph2(unittest.TestCase):
             )
 
     def test_answer_confidence(self):
+        len_prev_potential_answers = 4
         potential_answers = ([self.a1], [])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_READY)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_READY
+            )
+
+        len_prev_potential_answers = 4
         potential_answers = ([self.a1], [self.a0])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_READY)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_READY
+            )
 
+        len_prev_potential_answers = 4
         potential_answers = ([self.a0, self.a1], [self.a0])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_SEARCHING)
-        potential_answers = ([self.a0, self.a1, self.a2], [])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_SEARCHING)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_SEARCHING
+            )
 
+        len_prev_potential_answers = 4
+        potential_answers = ([self.a0, self.a1, self.a2], [])
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_SEARCHING
+            )
+
+        len_prev_potential_answers = 3
+        potential_answers = ([self.a0, self.a1, self.a2], [])
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_GUESS
+            )
+
+        len_prev_potential_answers = 3
         potential_answers = ([], [self.a0])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_GUESS)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_GUESS
+            )
+
+        len_prev_potential_answers = 0
         potential_answers = ([], [self.a0, self.a1])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_GUESS)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_GUESS
+            )
         
+        len_prev_potential_answers = 0
         potential_answers = ([], [])
-        self.assertEqual(self.g.get_confidence_lvl(potential_answers), CONF_LVL_STOP)
+        self.assertEqual(
+            self.g.get_confidence_lvl(
+                len_prev_potential_answers, 
+                potential_answers
+                ),
+            CONF_LVL_STOP
+            )
 
     def test_get_best_answer(self):
         pass
 
+    def test_diff_from_halving_answers(self):
+        potential_answers = self.g.get_all_potential_answers()
+        potential_questions = self.g.get_all_potential_questions()
+        result = self.g.diff_from_halving_answers(potential_answers, potential_questions)
+        self.assertEqual(
+            result, 
+            [
+                (0.5, self.q0),
+                (abs(1/3-1/2), self.q1),
+                (0, self.q2)
+                ]
+            )
+        self.assertEqual(min(result)[1], self.q2)
+
+        potential_answers = ([self.a1, self.a2], [])
+        potential_questions = [self.q1, self.q2]
+        result = self.g.diff_from_halving_answers(potential_answers, potential_questions)
+        self.assertEqual(
+            result,
+            [
+                (0, self.q1),
+                (0.5, self.q2)
+                ]
+            )
+        self.assertEqual(min(result)[1], self.q1)
+        
+
     def test_get_next_question(self):
-        pass
+        # get all potential answers and questions
+        history = []
+        potential_answers = []
+        potential_questions = []
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.q2)
+        self.assertEqual(potential_answers, ([self.a0, self.a1, self.a2], []))
+        self.assertEqual(potential_questions, [self.q0, self.q1, self.q2])
+
+        history.append(Entry(q_index, Q, YES))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.a0)
+        self.assertEqual(potential_answers, ([], [self.a1]))
+        self.assertEqual(potential_questions, [self.q0, self.q1])
+
+        history.append(Entry(q_index, A, NO))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        self.assertEqual(node, CONF_LVL_GUESS)
+
 
     def test_reset_filter(self):
         self.assertEqual(self.g.reset_filter(A), [1, 3, 5])
