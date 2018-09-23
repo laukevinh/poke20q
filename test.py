@@ -1,6 +1,6 @@
 import unittest
 from main import Q, A, C, YES, NO
-from main import CONF_LVL_READY, CONF_LVL_SEARCHING, CONF_LVL_GUESS, CONF_LVL_STOP
+from main import CONF_LVL_READY, CONF_LVL_SEARCHING, CONF_LVL_TRY_MAYBE, CONF_LVL_GUESS, CONF_LVL_STOP
 
 from main import Point, Node, Entry, Graph, Game
 
@@ -32,7 +32,10 @@ class TestGraph1(unittest.TestCase):
         # Set up a mock history and update
         q0 = self.g.get_index("q0")
         q1 = self.g.get_index("q1")
+        q2 = self.g.get_index("q2")
+        a0 = self.g.get_index("a0")
         a1 = self.g.get_index("a1")
+        a2 = self.g.get_index("a2")
         history = [
             Entry(q0, Q, NO), 
             Entry(q1, Q, YES), 
@@ -50,6 +53,31 @@ class TestGraph1(unittest.TestCase):
         q2 = self.g.get_index("q2")
         p_q2_a1 = self.g.get_point(q2, a1)
         self.assertEqual(p_q2_a1.typical_resp(), None)
+
+        # update history with control entries and incorrect answers
+        history = [
+            Entry(q0, Q, NO), 
+            Entry(a1, A, NO),
+            Entry(CONF_LVL_TRY_MAYBE, C, YES),
+            Entry(q1, Q, NO),
+            Entry(CONF_LVL_GUESS, C, YES),
+            Entry(a2, A, YES)
+            ]
+        self.g.update(history)
+
+        # test that Control entries and incorrect answers are skipped
+        point = self.g.get_point(q0, a1)
+        self.assertEqual((point.yes, point.no), (0,1))
+        point = self.g.get_point(q1, a1)
+        self.assertEqual((point.yes, point.no), (1,0))
+        point = self.g.get_point(q2, a1)
+        self.assertEqual((point.yes, point.no), (0,0))
+        point = self.g.get_point(q0, a2)
+        self.assertEqual((point.yes, point.no), (0,1))
+        point = self.g.get_point(q1, a2)
+        self.assertEqual((point.yes, point.no), (0,1))
+        point = self.g.get_point(q2, a2)
+        self.assertEqual((point.yes, point.no), (0,0))
 
     def test_get_all_potentials(self):
         self.assertEqual(self.g.get_all_potentials(A), [1, 3, 5])
@@ -160,10 +188,12 @@ class TestGraph2(unittest.TestCase):
     def test_answer_confidence(self):
         len_prev_potential_answers = 4
         potential_answers = ([self.a1], [])
+        history = []
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history,
                 ),
             CONF_LVL_READY
             )
@@ -173,7 +203,8 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
             CONF_LVL_READY
             )
@@ -183,7 +214,8 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
             CONF_LVL_SEARCHING
             )
@@ -193,7 +225,8 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
             CONF_LVL_SEARCHING
             )
@@ -203,7 +236,8 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
             CONF_LVL_GUESS
             )
@@ -213,9 +247,10 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
-            CONF_LVL_GUESS
+            CONF_LVL_TRY_MAYBE
             )
 
         len_prev_potential_answers = 0
@@ -223,9 +258,10 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
-            CONF_LVL_GUESS
+            CONF_LVL_TRY_MAYBE
             )
         
         len_prev_potential_answers = 0
@@ -233,7 +269,8 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
-                potential_answers
+                potential_answers,
+                history
                 ),
             CONF_LVL_STOP
             )
@@ -292,7 +329,7 @@ class TestGraph2(unittest.TestCase):
         result = self.g.get_next_question(history, potential_answers, potential_questions)
         (node, potential_answers, potential_questions) = result
         q_index = self.g.get_index(node.text)
-        self.assertEqual(q_index, CONF_LVL_GUESS)
+        self.assertEqual(q_index, CONF_LVL_TRY_MAYBE)
         self.assertEqual(potential_answers, ([], [self.a1]))
         self.assertEqual(potential_questions, [self.q0, self.q1])
 
@@ -311,6 +348,67 @@ class TestGraph2(unittest.TestCase):
         self.assertEqual(q_index, CONF_LVL_STOP)
         self.assertEqual(potential_answers, ([], []))
         self.assertEqual(potential_questions, [self.q0, self.q1])
+
+    def test_get_next_question_2(self):
+        # get all potential answers and questions
+        history = [
+            Entry(self.q1, Q, YES), 
+            Entry(self.a1, A, YES)
+            ]
+        self.g.update(history)
+        history = [
+            Entry(self.q0, Q, YES), 
+            Entry(self.q2, Q, YES),
+            Entry(self.a2, A, YES)
+            ]
+        self.g.update(history)
+        history = [
+            Entry(self.q2, Q, YES),
+            Entry(self.a2, A, YES)
+            ]
+        self.g.update(history)
+
+        history = []
+        potential_answers = []
+        potential_questions = []
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.q1)
+        self.assertEqual(potential_answers, ([self.a0, self.a1, self.a2], []))
+        self.assertEqual(potential_questions, [self.q0, self.q1, self.q2])
+
+        history.append(Entry(q_index, Q, NO))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.q0)
+        self.assertEqual(potential_answers, ([self.a0, self.a2], []))
+        self.assertEqual(potential_questions, [self.q0, self.q2])
+
+        history.append(Entry(q_index, Q, YES))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, CONF_LVL_GUESS)
+        self.assertEqual(potential_answers, ([self.a0, self.a2], []))
+        self.assertEqual(potential_questions, [self.q2])
+
+        history.append(Entry(q_index, C, YES))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, self.a2)
+        self.assertEqual(potential_answers, ([self.a0], []))
+        self.assertEqual(potential_questions, [self.q2])
+
+        history.append(Entry(q_index, A, NO))
+        result = self.g.get_next_question(history, potential_answers, potential_questions)
+        (node, potential_answers, potential_questions) = result
+        q_index = self.g.get_index(node.text)
+        self.assertEqual(q_index, CONF_LVL_TRY_MAYBE)
+        self.assertEqual(potential_answers, ([], [self.a0]))
+        self.assertEqual(potential_questions, [self.q2])
 
     def test_reset_filter(self):
         self.assertEqual(self.g.reset_filter(A), [1, 3, 5])

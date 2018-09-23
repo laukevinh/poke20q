@@ -12,6 +12,7 @@ CONF_LVL_READY = 0
 CONF_LVL_SEARCHING = 1
 CONF_LVL_GUESS = -1
 CONF_LVL_STOP = -2
+CONF_LVL_TRY_MAYBE = -3
 
 def convert_yes_no(resp):
     resp = str.lower(resp)
@@ -103,6 +104,8 @@ class Graph:
             return CONF_LVL_GUESS
         elif text_key == CONF_LVL_STOP:
             return CONF_LVL_STOP
+        elif text_key == CONF_LVL_TRY_MAYBE:
+            return CONF_LVL_TRY_MAYBE
         return self.index.get(text_key)
 
     def get_node(self, index):
@@ -136,8 +139,11 @@ class Graph:
         last = history[-1]
         if last.type_ == A and last.resp == YES:
             for entry in history:
-                point = self.get_point(entry.index, last.index)
-                point.inc(entry.resp, 1)
+                if entry.type_ == Q:
+                    point = self.get_point(entry.index, last.index)
+                    point.inc(entry.resp, 1)
+            point = self.get_point(last.index, last.index)
+            point.inc(last.resp, 1)
         del(history[:])
 
     def get_all_potentials(self, type_):
@@ -172,24 +178,37 @@ class Graph:
     def get_potential_answers(self, last_entry, potential_answers):
         prev_match, prev_maybe = potential_answers[0], potential_answers[1]
         if (last_entry.type_ == C):
-            potential_answers = (potential_answers[1], potential_answers[0])
+            while len(potential_answers[1]) > 0:
+                potential_answers[0].append(potential_answers[1].pop())
             return potential_answers
         match, maybe = [], []
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_match, match, maybe)
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_maybe, match, maybe)
         return (match, maybe)
 
-    def get_confidence_lvl(self, prev_len_potential_answers, potential_answers):
+    def get_confidence_lvl(self, prev_len_potential_answers, potential_answers, history):
         len_match = len(potential_answers[0])
         len_maybe = len(potential_answers[1])
+        last_entry = history[-1] if len(history) > 0 else None
+        if (last_entry is not None
+                and last_entry.type_ == A
+                and last_entry.resp == YES):
+            return CONF_LVL_STOP
         if (len_match == 1):
             return CONF_LVL_READY
         elif (len_match > 1):
+            if (last_entry is not None 
+                    and last_entry.type_ == C 
+                    and last_entry.index == CONF_LVL_GUESS):
+                if last_entry.resp == YES:
+                    return CONF_LVL_READY
+                elif last_entry.resp == NO:
+                    return CONF_LVL_STOP
             if (prev_len_potential_answers == len_match):
                 return CONF_LVL_GUESS
             return CONF_LVL_SEARCHING
         elif (len_maybe > 0):
-            return CONF_LVL_GUESS
+            return CONF_LVL_TRY_MAYBE
         else:
             return CONF_LVL_STOP
 
@@ -203,9 +222,9 @@ class Graph:
             subtotal_point = Point(0,0)
             for j in range(len_match):
                 a_index = match[j]
-                point = self.get_point(q_index, a_index)
-                subtotal_point.inc(YES, point.yes)
-                subtotal_point.inc(NO, point.no)
+                typical_resp = self.get_point(q_index, a_index).typical_resp()
+                if typical_resp is not None:
+                    subtotal_point.inc(typical_resp, 1)
             try:
                 value = abs(subtotal_point.ytoa() - TYPICAL_RESP_THRESHOLD)
             except TypeError:
@@ -228,7 +247,7 @@ class Graph:
             potential_answers = self.get_potential_answers(last_entry, potential_answers)
             potential_questions = self.get_potential_questions(last_entry, potential_questions)
 
-        confidence_lvl = self.get_confidence_lvl(prev_len_potential_answers, potential_answers)
+        confidence_lvl = self.get_confidence_lvl(prev_len_potential_answers, potential_answers, history)
 
         # if READY, ask answer but don't remove from potential answers
         # leave that for game to handle
@@ -238,6 +257,8 @@ class Graph:
             node = Node(C, CONF_LVL_STOP)
         elif confidence_lvl == CONF_LVL_GUESS:
             node = Node(C, CONF_LVL_GUESS)
+        elif confidence_lvl == CONF_LVL_TRY_MAYBE:
+            node = Node(C, CONF_LVL_TRY_MAYBE)
         elif confidence_lvl == CONF_LVL_SEARCHING:
             q_index = min(self.diff_from_halving_answers(potential_answers, potential_questions))[1]
             node = self.get_node(q_index)
