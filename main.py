@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 
 Q = 0
@@ -376,13 +377,29 @@ class Game:
             self.ask_answer()
             self.update_graph(self.history)
             add_more = get_ans("Add another question and answer (y/n)?")
+
+    def load_game(self):
+        file_name = input("Saved file name: ")
+        try:
+            f = open(file_name)
+        except FileNotFoundError:
+            print("File '{}' not found".format(file_name))
+            self.new_game()
+        else:
+            reader = csv.reader(f, delimiter=",")
+            next(reader)
+            for row in reader:
+                self.graph.add_answer(row[1])
+            f.close()
         
     def resume_game(self):
-        print("Loading game {}".format(self.saved_file))
+        print("Resuming game {}".format(self.saved_file))
+        if (self.graph.size == 0):
+            self.load_game()
 
     def start(self):
         if (self.saved_file is None):
-            self.new_game()
+            self.load_game()
         else:
             self.resume_game()
 
