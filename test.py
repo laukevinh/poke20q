@@ -187,12 +187,16 @@ class TestGraph2(unittest.TestCase):
 
     def test_answer_confidence(self):
         len_prev_potential_answers = 4
+        len_prev_potential_questions = -1
         potential_answers = ([self.a1], [])
+        potential_questions = [self.q0, self.q1]
         history = []
         self.assertEqual(
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history,
                 ),
             CONF_LVL_READY
@@ -204,6 +208,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_READY
@@ -215,6 +221,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_SEARCHING
@@ -226,6 +234,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_SEARCHING
@@ -237,6 +247,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_GUESS
@@ -248,6 +260,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_TRY_MAYBE
@@ -259,6 +273,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_TRY_MAYBE
@@ -270,6 +286,8 @@ class TestGraph2(unittest.TestCase):
             self.g.get_confidence_lvl(
                 len_prev_potential_answers, 
                 potential_answers,
+                len_prev_potential_questions,
+                potential_questions,
                 history
                 ),
             CONF_LVL_STOP

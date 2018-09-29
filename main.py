@@ -180,15 +180,20 @@ class Graph:
     def get_potential_answers(self, last_entry, potential_answers):
         prev_match, prev_maybe = potential_answers[0], potential_answers[1]
         if (last_entry.type_ == C):
-            while len(potential_answers[1]) > 0:
-                potential_answers[0].append(potential_answers[1].pop())
+            if (last_entry.index == CONF_LVL_TRY_MAYBE):
+                while len(potential_answers[1]) > 0:
+                    potential_answers[0].append(potential_answers[1].pop())
+                return potential_answers
+            if (last_entry.index == CONF_LVL_GUESS):
+                return potential_answers
+        if (last_entry.type_ == A):
             return potential_answers
         match, maybe = [], []
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_match, match, maybe)
         match, maybe = self.split_to_match_and_maybe(last_entry, prev_maybe, match, maybe)
         return (match, maybe)
 
-    def get_confidence_lvl(self, prev_len_potential_answers, potential_answers, history):
+    def get_confidence_lvl(self, prev_len_potential_answers, potential_answers, prev_len_potential_questions, potential_questions, history):
         len_match = len(potential_answers[0])
         len_maybe = len(potential_answers[1])
         last_entry = history[-1] if len(history) > 0 else None
@@ -206,7 +211,19 @@ class Graph:
                     return CONF_LVL_READY
                 elif last_entry.resp == NO:
                     return CONF_LVL_STOP
+            if (last_entry is not None 
+                    and last_entry.type_ == C 
+                    and last_entry.index == CONF_LVL_TRY_MAYBE
+                    and len(potential_questions) == 0):
+                if last_entry.resp == YES:
+                    return CONF_LVL_READY
+                elif last_entry.resp == NO:
+                    return CONF_LVL_STOP
             if (prev_len_potential_answers == len_match):
+                return CONF_LVL_GUESS
+            if (prev_len_potential_questions == -1 and len(potential_questions) == 0):
+                return CONF_LVL_GUESS
+            if (len(potential_questions) == 0):
                 return CONF_LVL_GUESS
             return CONF_LVL_SEARCHING
         elif (len_maybe > 0):
@@ -242,14 +259,20 @@ class Graph:
         if len(history) == 0:
             potential_answers = self.get_all_potential_answers()
             potential_questions = self.get_all_potential_questions()
-            prev_len_potential_answers = len(potential_answers[0]) + 1
+            prev_len_potential_answers = -1
+            prev_len_potential_questions = -1
         else:
             last_entry = history[-1]
             prev_len_potential_answers = len(potential_answers[0])
+            prev_len_potential_questions = len(potential_questions)
             potential_answers = self.get_potential_answers(last_entry, potential_answers)
             potential_questions = self.get_potential_questions(last_entry, potential_questions)
 
-        confidence_lvl = self.get_confidence_lvl(prev_len_potential_answers, potential_answers, history)
+        confidence_lvl = self.get_confidence_lvl(
+            prev_len_potential_answers, potential_answers, 
+            prev_len_potential_questions, potential_questions,
+            history
+            )
 
         if confidence_lvl == CONF_LVL_READY:
             node = self.get_node(potential_answers[0].pop())
@@ -338,6 +361,7 @@ class Game:
             self.potential_questions
             )
         (node, self.potential_answers, self.potential_questions) = result
+        print("pa: {}:{}; pq: {}".format(len(self.potential_answers[0]), len(self.potential_answers[1]), len(self.potential_questions)))
         if node.type_ == C:
             if node.text == CONF_LVL_STOP:
                 print("Darn, we didn't get it")
@@ -350,11 +374,21 @@ class Game:
                 return NO
             elif node.text == CONF_LVL_GUESS:
                 resp = get_ans("Tricky...want me to guess?")
-                self.track_resp(CONF_LVL_GUESS, C, resp)
+                if (resp == YES):
+                    self.track_resp(CONF_LVL_GUESS, C, resp)
+                else:
+                    print("Darn, we didn't get it")
+                    self.ask_answer()
+                    self.update_graph(self.history)
                 return resp
             elif node.text == CONF_LVL_TRY_MAYBE:
                 resp = get_ans("Tricky...try the maybes?")
-                self.track_resp(CONF_LVL_TRY_MAYBE, C, resp)
+                if (resp == YES):
+                    self.track_resp(CONF_LVL_TRY_MAYBE, C, resp)
+                else:
+                    print("Darn, we didn't get it")
+                    self.ask_answer()
+                    self.update_graph(self.history)
                 return resp
             else:
                 print("Error: Undefined Control flag {}".format(node.index))
