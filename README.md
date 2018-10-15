@@ -3,7 +3,8 @@
 ## Table of Contents
 
 - [About](#about)
-- [Implementation](#implementation)
+- [Running the game](#running-the-game)
+- [Todo](#todo)
 
 ## About
 
@@ -33,10 +34,22 @@ Make sure you're running Python 3, then
 
 `python main.py`
 
+To try playing from an example, type `saved_game.csv` when prompted
+after starting the game. The `saved_game.csv` file contains over 950 
+pokemon names but only a handful of questions. This dataset will  
+need more game time to improve.
+
+(e.g. bulbasaur is marked Yes as a grass type. However, the saved game
+hasn't learend that there are other grass types like ivysaur and 
+venesaur. For the game to learn about other grass types, a player will
+need to play the game with ivysaur in mind, and when it gives up, 
+the player should reveal the answer and add a truthful description
+of ivysaur.)
+
 ## Todo
 
 - When a player adds a new question or a new answer, suggest 
 similar, existing question or answer before adding.
 - Add database of existing questions and answers.
 - Implement the game online.
-- Improve the guessing algorithm.
+- Improve the speed of the guessing algorithm.
