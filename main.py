@@ -361,7 +361,7 @@ class Game:
             self.potential_questions
             )
         (node, self.potential_answers, self.potential_questions) = result
-        print("pa: {}:{}; pq: {}".format(len(self.potential_answers[0]), len(self.potential_answers[1]), len(self.potential_questions)))
+        #print("pa: {}:{}; pq: {}".format(len(self.potential_answers[0]), len(self.potential_answers[1]), len(self.potential_questions)))
         if node.type_ == C:
             if node.text == CONF_LVL_STOP:
                 print("Darn, we didn't get it")
@@ -400,10 +400,20 @@ class Game:
 
     def save(self):
         if self.saved_file is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d")
-            self.saved_file = "saved-{}.csv".format(timestamp)
-        print("Saving file to {}".format(self.saved_file))
+            self.saved_file = input("Save game as: ")
+            if len(self.saved_file) == 0:
+                timestamp = datetime.now().strftime("%Y-%m-%d")
+                self.saved_file = "saved-{}.csv".format(timestamp)
 
+        with open(self.saved_file, "w") as f:
+            for i in range(self.graph.size):
+                node = self.graph.get_node(i)
+                f.write("{},{}".format(node.type_, node.text))
+                for j in range(i+1):
+                    point = self.graph.get_point(i,j)
+                    f.write(",{}:{}".format(point.yes, point.no))
+                f.write("\n")
+        
     def new_game(self):
         print("New game")
         add_more = YES
@@ -420,12 +430,19 @@ class Game:
             print("File '{}' not found".format(file_name))
             self.new_game()
         else:
+            self.saved_file = file_name
             reader = csv.reader(f, delimiter=",")
-            next(reader)
+            count = 0
             for row in reader:
-                self.graph.add_answer(row[1])
+                self.graph.add(int(row[0]), row[1])
+                for i in range(2, len(row)):
+                    if len(row[i]) > 0:
+                        yes, no = row[i].split(":")
+                        self.graph.data[count][i-2].inc(YES, int(yes))
+                        self.graph.data[count][i-2].inc(NO, int(no))
+                count += 1
             f.close()
-        
+
     def resume_game(self):
         print("Resuming game {}".format(self.saved_file))
         if (self.graph.size == 0):
@@ -441,7 +458,6 @@ class Game:
             pass
 
         del(self.history[:])
-        self.save()
 
     def stop(self):
         self.play = False
@@ -451,6 +467,7 @@ class Game:
 
     def prompt_replay(self):
         if get_ans("Replay (y/n)") == NO: 
+            game.save()
             game.stop()
         else:
             game.reset()
